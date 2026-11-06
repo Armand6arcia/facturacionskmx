@@ -1,0 +1,141 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Cliente {
+  id              String      @id @default(cuid())
+  rfc             String      @unique
+  razonSocial     String
+  codigoPostal    String
+  regimenFiscal   String      // e.g. "601", "616"
+  usoCfdiDefault  String      // e.g. "G03", "S01", "CP01"
+  pais            String      @default("MEX")
+  numRegIdTrib    String?
+  esExtranjero    Boolean     @default(false)
+  documentos      Documento[]
+  createdAt       DateTime    @default(now())
+}
+
+model ProductoSat {
+  id              String   @id @default(cuid())
+  sku             String   @unique
+  barcode         String?
+  descripcion     String
+  claveProdServ   String?  // null => NUEVO / SIN MAPEAR
+  claveUnidad     String   @default("H87") // Pieza
+  objetoImp       String   @default("02")  // Sí objeto de impuesto
+  tasaIVA         Float    @default(0.16)
+  hsCode          String?  // Fracción arancelaria informativa
+  esDemo          Boolean  @default(true)  // "demo, validar con catálogo SAT"
+  updatedAt       DateTime @updatedAt
+}
+
+model Documento {
+  id              String          @id @default(cuid())
+  docNumber       String          @unique // e.g. "IN00491311"
+  fileHash        String          // SHA256 hex
+  formatoOrigen   String          // "HTML_XLS" | "BINARY_XLS"
+  tipoFactura     String          // "CLIENTE" | "GLOBAL_NACIONAL" | "GLOBAL_EXTRANJERO" | "TRASLADO"
+  estado          String          @default("BORRADOR") // BORRADOR, REVISADO, TIMBRADO, CANCELADO
+  fechaEmision    DateTime        @default(now())
+  serie           String          @default("A")
+  folio           Int             @default(1)
+  
+  // Receptor fiscal
+  clienteId       String?
+  cliente         Cliente?        @relation(fields: [clienteId], references: [id])
+  rfcReceptor     String?
+  nombreReceptor  String?
+  regimenReceptor String?
+  cpReceptor      String?
+  usoCfdi         String?
+  formaPago       String          @default("03") // 03: Transferencia
+  metodoPago      String          @default("PUE")
+  
+  // Parámetros específicos
+  infoGlobal      String?         @db.Text // JSON: periodicidad, mes, año
+  datosExtranjero String?         @db.Text // JSON: pais, numRegIdTrib, tipoExportacion, ivaCero
+  datosCartaPorte String?         @db.Text // JSON: origen, destino, operador, vehiculo, pesoBruto, bultos
+  
+  // Totales
+  subtotal        Float
+  iva             Float
+  total           Float
+  totalPiezas     Int
+  pesoTotalKg     Float
+  
+  items           DocumentoItem[]
+  timbre          TimbreFiscal?
+  bitacora        BitacoraEvento[]
+  createdAt       DateTime        @default(now())
+}
+
+model DocumentoItem {
+  id              String      @id @default(cuid())
+  documentoId     String
+  documento       Documento   @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  piNo            String?
+  sku             String
+  descripcion     String
+  brand           String?
+  cantidad        Float       // Invc Qty
+  piQty           Float?      // PI Qty
+  precioUnitario  Float       // WholeSale Price
+  rateReferencia  Float?      // Rate
+  retailPrice     Float?      // Retail Price
+  base            Float       // round(cantidad * precio, 2)
+  iva             Float       // round(base * 0.16, 2)
+  importe         Float       // base + iva
+  claveProdServ   String?
+  claveUnidad     String      @default("H87")
+  purposeOfUse    String?         @db.Text
+  reference       String?         @db.Text
+  barcode         String?
+  pesoKg          Float?
+  excluido        Boolean     @default(false)
+  descuentoCien   Boolean     @default(false) // Promo con 100% de descuento
+}
+
+model TimbreFiscal {
+  id                String    @id @default(cuid())
+  documentoId       String    @unique
+  documento         Documento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  uuid              String    @unique
+  fechaTimbrado     DateTime  @default(now())
+  noCertificadoSat  String    @default("00001000000504465028")
+  selloCfd          String    @db.Text
+  selloSat          String    @db.Text
+  cadenaOriginal    String    @db.Text
+  xmlContent        String    @db.LongText
+  estado            String    @default("VIGENTE") // VIGENTE | CANCELADO
+  motivoCancelacion String?
+  fechaCancelacion  DateTime?
+}
+
+model PlantillaCartaPorte {
+  id          String   @id @default(cuid())
+  nombre      String
+  origen      String
+  destino     String
+  distanciaKm Float
+  vehiculo    String
+  placas      String
+  operador    String
+  rfcOperador String
+}
+
+model BitacoraEvento {
+  id          String    @id @default(cuid())
+  documentoId String
+  documento   Documento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  tipo        String    // CARGA, MAPEO_SKU, ERROR_PAC, TIMBRADO, CANCELACION
+  descripcion String    @db.Text
+  detalles    String?   @db.Text   // JSON
+  createdAt   DateTime  @default(now())
+}
+

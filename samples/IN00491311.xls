@@ -1,0 +1,497 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Commercial Invoice IN00491311</title>
+<style>
+table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
+th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+th { background-color: #f2f2f2; font-weight: bold; }
+.num { text-align: right; }
+</style>
+</head>
+<body>
+<h2>COMMERCIAL INVOICE: IN00491311</h2>
+<table>
+<thead>
+<tr>
+  <th>PI No</th>
+  <th>SKU</th>
+  <th>Product Name</th>
+  <th>Brand</th>
+  <th>Retail Price</th>
+  <th>Rate</th>
+  <th>WholeSale Price</th>
+  <th>PI Qty</th>
+  <th>Invc Qty</th>
+  <th>Amount</th>
+  <th>VAT</th>
+  <th>CBM</th>
+  <th>Weight(kg)</th>
+  <th>Purpose Of Use</th>
+  <th>Reference</th>
+  <th>Barcode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-COSRX-001</td>
+  <td>COSRX Advanced Snail 96 Mucin Power Essence 100ml</td>
+  <td>COSRX</td>
+  <td class="num">197.86</td>
+  <td class="num">154.57</td>
+  <td class="num">123.66</td>
+  <td class="num">30</td>
+  <td class="num">30</td>
+  <td class="num">3709.80</td>
+  <td class="num">593.57</td>
+  <td class="num">0.0360</td>
+  <td class="num">0.200</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809416470009 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-COSRX-002</td>
+  <td>COSRX Low pH Good Morning Gel Cleanser 150ml</td>
+  <td>COSRX</td>
+  <td class="num">251.42</td>
+  <td class="num">196.42</td>
+  <td class="num">157.14</td>
+  <td class="num">25</td>
+  <td class="num">25</td>
+  <td class="num">3928.50</td>
+  <td class="num">628.56</td>
+  <td class="num">0.0300</td>
+  <td class="num">3.800</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809416470016 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-COSRX-003</td>
+  <td>COSRX BHA Blackhead Power Liquid 100ml</td>
+  <td>COSRX</td>
+  <td class="num">259.68</td>
+  <td class="num">202.88</td>
+  <td class="num">162.30</td>
+  <td class="num">20</td>
+  <td class="num">20</td>
+  <td class="num">3246.00</td>
+  <td class="num">519.36</td>
+  <td class="num">0.0240</td>
+  <td class="num">3.100</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809416470023 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-COSRX-004</td>
+  <td>COSRX Oil-Free Ultra-Moisturizing Lotion 100ml</td>
+  <td>COSRX</td>
+  <td class="num">290.45</td>
+  <td class="num">226.91</td>
+  <td class="num">181.53</td>
+  <td class="num">15</td>
+  <td class="num">15</td>
+  <td class="num">2722.95</td>
+  <td class="num">435.67</td>
+  <td class="num">0.0180</td>
+  <td class="num">2.450</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809416470030 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-BEAUTY-005</td>
+  <td>Beauty of Joseon Relief Sun Rice + Probiotics 50ml</td>
+  <td>Beauty of Joseon</td>
+  <td class="num">318.48</td>
+  <td class="num">248.81</td>
+  <td class="num">199.05</td>
+  <td class="num">35</td>
+  <td class="num">35</td>
+  <td class="num">6966.75</td>
+  <td class="num">1114.68</td>
+  <td class="num">0.0420</td>
+  <td class="num">4.200</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657114977 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-BEAUTY-006</td>
+  <td>Beauty of Joseon Glow Serum Propolis + Niacinamide 30ml</td>
+  <td>Beauty of Joseon</td>
+  <td class="num">372.10</td>
+  <td class="num">290.70</td>
+  <td class="num">232.56</td>
+  <td class="num">25</td>
+  <td class="num">25</td>
+  <td class="num">5814.00</td>
+  <td class="num">930.24</td>
+  <td class="num">0.0300</td>
+  <td class="num">2.950</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657114984 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-BEAUTY-007</td>
+  <td>Beauty of Joseon Dynasty Cream 50ml</td>
+  <td>Beauty of Joseon</td>
+  <td class="num">393.47</td>
+  <td class="num">307.40</td>
+  <td class="num">245.92</td>
+  <td class="num">18</td>
+  <td class="num">18</td>
+  <td class="num">4426.56</td>
+  <td class="num">708.25</td>
+  <td class="num">0.0216</td>
+  <td class="num">3.100</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657114991 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-BEAUTY-008</td>
+  <td>Beauty of Joseon Ginseng Essence Water 150ml</td>
+  <td>Beauty of Joseon</td>
+  <td class="num">221.78</td>
+  <td class="num">173.26</td>
+  <td class="num">138.61</td>
+  <td class="num">20</td>
+  <td class="num">20</td>
+  <td class="num">2772.20</td>
+  <td class="num">443.55</td>
+  <td class="num">0.0240</td>
+  <td class="num">4.200</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657115004 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-ANUA-009</td>
+  <td>Anua Heartleaf 77% Soothing Toner 250ml</td>
+  <td>Anua</td>
+  <td class="num">251.71</td>
+  <td class="num">196.65</td>
+  <td class="num">157.32</td>
+  <td class="num">20</td>
+  <td class="num">20</td>
+  <td class="num">3146.40</td>
+  <td class="num">503.42</td>
+  <td class="num">0.0240</td>
+  <td class="num">5.500</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809640730108 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-ANUA-010</td>
+  <td>Anua Heartleaf Pore Control Cleansing Oil 200ml</td>
+  <td>Anua</td>
+  <td class="num">286.83</td>
+  <td class="num">224.09</td>
+  <td class="num">179.27</td>
+  <td class="num">15</td>
+  <td class="num">15</td>
+  <td class="num">2689.05</td>
+  <td class="num">430.25</td>
+  <td class="num">0.0180</td>
+  <td class="num">3.800</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809640730115 ]</td>
+</tr>
+<tr>
+  <td>PI2026-99</td>
+  <td>SK-ANUA-011</td>
+  <td>Anua Peach 70% Niacin Serum 30ml</td>
+  <td>Anua</td>
+  <td class="num">310.14</td>
+  <td class="num">242.30</td>
+  <td class="num">193.84</td>
+  <td class="num">12</td>
+  <td class="num">12</td>
+  <td class="num">2326.08</td>
+  <td class="num">372.17</td>
+  <td class="num">0.0144</td>
+  <td class="num">1.500</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809640730122 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-ROUND-012</td>
+  <td>Round Lab Birch Juice Moisturizing Sun Cream 50ml</td>
+  <td>Round Lab</td>
+  <td class="num">327.58</td>
+  <td class="num">255.93</td>
+  <td class="num">204.74</td>
+  <td class="num">25</td>
+  <td class="num">25</td>
+  <td class="num">5118.50</td>
+  <td class="num">818.96</td>
+  <td class="num">0.0300</td>
+  <td class="num">2.750</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657115011 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-ROUND-013</td>
+  <td>Round Lab 1025 Dokdo Toner 200ml</td>
+  <td>Round Lab</td>
+  <td class="num">369.04</td>
+  <td class="num">288.31</td>
+  <td class="num">230.65</td>
+  <td class="num">18</td>
+  <td class="num">15</td>
+  <td class="num">3459.75</td>
+  <td class="num">553.56</td>
+  <td class="num">0.0180</td>
+  <td class="num">3.600</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657115028 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-ROUND-014</td>
+  <td>Round Lab 1025 Dokdo Cleanser 150ml</td>
+  <td>Round Lab</td>
+  <td class="num">401.12</td>
+  <td class="num">313.38</td>
+  <td class="num">250.70</td>
+  <td class="num">12</td>
+  <td class="num">12</td>
+  <td class="num">3008.40</td>
+  <td class="num">481.34</td>
+  <td class="num">0.0144</td>
+  <td class="num">2.150</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657115035 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-SKIN10-015</td>
+  <td>SKIN1004 Madagascar Centella Ampoule 100ml</td>
+  <td>SKIN1004</td>
+  <td class="num">218.46</td>
+  <td class="num">170.67</td>
+  <td class="num">136.54</td>
+  <td class="num">16</td>
+  <td class="num">16</td>
+  <td class="num">2184.64</td>
+  <td class="num">349.54</td>
+  <td class="num">0.0192</td>
+  <td class="num">2.800</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809576261011 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-SKIN10-016</td>
+  <td>SKIN1004 Madagascar Centella Hyalu-Cica Water-Fit Sun Serum 50ml</td>
+  <td>SKIN1004</td>
+  <td class="num">238.24</td>
+  <td class="num">186.13</td>
+  <td class="num">148.90</td>
+  <td class="num">18</td>
+  <td class="num">18</td>
+  <td class="num">2680.20</td>
+  <td class="num">428.83</td>
+  <td class="num">0.0216</td>
+  <td class="num">1.900</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809576261028 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-TORRID-017</td>
+  <td>Torriden DIVE-IN Low Molecular Hyaluronic Acid Serum 50ml</td>
+  <td>Torriden</td>
+  <td class="num">287.71</td>
+  <td class="num">224.77</td>
+  <td class="num">179.82</td>
+  <td class="num">12</td>
+  <td class="num">12</td>
+  <td class="num">2157.84</td>
+  <td class="num">345.25</td>
+  <td class="num">0.0144</td>
+  <td class="num">1.650</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657115042 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-TORRID-018</td>
+  <td>Torriden DIVE-IN Soothing Cream 100ml</td>
+  <td>Torriden</td>
+  <td class="num">306.54</td>
+  <td class="num">239.49</td>
+  <td class="num">191.59</td>
+  <td class="num">10</td>
+  <td class="num">10</td>
+  <td class="num">1915.90</td>
+  <td class="num">306.54</td>
+  <td class="num">0.0120</td>
+  <td class="num">1.850</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657115059 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-MEDIH-019</td>
+  <td>Mediheal Tea Tree Essential Mask 10pk</td>
+  <td>Mediheal</td>
+  <td class="num">308.14</td>
+  <td class="num">240.74</td>
+  <td class="num">192.59</td>
+  <td class="num">12</td>
+  <td class="num">12</td>
+  <td class="num">2311.08</td>
+  <td class="num">369.77</td>
+  <td class="num">0.0144</td>
+  <td class="num">2.400</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809416470047 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-MEDIH-020</td>
+  <td>Mediheal Collagen Essential Mask 10pk</td>
+  <td>Mediheal</td>
+  <td class="num">348.70</td>
+  <td class="num">272.43</td>
+  <td class="num">217.94</td>
+  <td class="num">10</td>
+  <td class="num">10</td>
+  <td class="num">2179.40</td>
+  <td class="num">348.70</td>
+  <td class="num">0.0120</td>
+  <td class="num">2.100</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809416470054 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-MIXSO-021</td>
+  <td>Mixsoon Bean Essence 50ml</td>
+  <td>Mixsoon</td>
+  <td class="num">394.13</td>
+  <td class="num">307.91</td>
+  <td class="num">246.33</td>
+  <td class="num">10</td>
+  <td class="num">10</td>
+  <td class="num">2463.30</td>
+  <td class="num">394.13</td>
+  <td class="num">0.0120</td>
+  <td class="num">1.450</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657115066 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-MIXSO-022</td>
+  <td>Mixsoon Centella Asiatica Essence 100ml</td>
+  <td>Mixsoon</td>
+  <td class="num">212.22</td>
+  <td class="num">165.80</td>
+  <td class="num">132.64</td>
+  <td class="num">8</td>
+  <td class="num">8</td>
+  <td class="num">1061.12</td>
+  <td class="num">169.78</td>
+  <td class="num">0.0096</td>
+  <td class="num">1.200</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657115073 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-HARUH-023</td>
+  <td>Haruharu Wonder Black Rice Hyaluronic Toner 150ml</td>
+  <td>Haruharu Wonder</td>
+  <td class="num">242.54</td>
+  <td class="num">189.49</td>
+  <td class="num">151.59</td>
+  <td class="num">8</td>
+  <td class="num">8</td>
+  <td class="num">1212.72</td>
+  <td class="num">194.04</td>
+  <td class="num">0.0096</td>
+  <td class="num">1.100</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657115080 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-HARUH-024</td>
+  <td>Haruharu Wonder Black Rice Deep Cleansing Oil 150ml</td>
+  <td>Haruharu Wonder</td>
+  <td class="num">717.04</td>
+  <td class="num">560.19</td>
+  <td class="num">448.15</td>
+  <td class="num">5</td>
+  <td class="num">5</td>
+  <td class="num">2240.75</td>
+  <td class="num">358.52</td>
+  <td class="num">0.0060</td>
+  <td class="num">0.400</td>
+  <td>COMMERCIAL SALE</td>
+  <td></td>
+  <td>[ 8809657115097 ]</td>
+</tr>
+<tr>
+  <td>PI2026-01</td>
+  <td>SK-PROMO-025</td>
+  <td>K-Beauty Deluxe Sample Kit (PROMO)</td>
+  <td>K-Beauty Lab</td>
+  <td class="num">717.02</td>
+  <td class="num">560.17</td>
+  <td class="num">448.14</td>
+  <td class="num">5</td>
+  <td class="num">5</td>
+  <td class="num">2240.70</td>
+  <td class="num">358.51</td>
+  <td class="num">0.0060</td>
+  <td class="num">0.016</td>
+  <td>PROMO SAMPLE</td>
+  <td>4pcs faltante</td>
+  <td>[ 8809541379468 ]</td>
+</tr>
+<tr class="total-row">
+  <td colspan="7"><b>Total</b></td>
+  <td class="num"><b>404</b></td>
+  <td class="num"><b>401</b></td>
+  <td class="num"><b>75982.59</b></td>
+  <td class="num"><b>12157.19</b></td>
+  <td colspan="5"></td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

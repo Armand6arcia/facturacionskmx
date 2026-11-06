@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  factura-skmx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: factura_skmx_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - PAC_PROVIDER=mock
+      # Para cuando se active Factura.com:
+      # - PAC_PROVIDER=facturacom
+      # - FACTURACOM_ENV=sandbox
+      # - FACTURACOM_API_KEY=tu_api_key
+      # - FACTURACOM_SECRET_KEY=tu_secret_key
+    volumes:
+      # Persistencia de la base de datos SQLite en el host
+      - ./data:/app/prisma_data
+      - ./samples:/app/samples:ro
+
