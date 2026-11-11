@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
         const isEnvio = isDeliveryFeeItem(i.sku, i.descripcion, i.claveProdServ, i.claveUnidad);
         return {
           claveProdServ: isEnvio ? CLAVE_PROD_ENVIO_DEFAULT : (i.claveProdServ || CLAVE_PROD_PRODUCTO_DEFAULT),
-          noIdentificacion: i.sku || (isEnvio ? "DELIVERYFEE" : "SKU"),
+          noIdentificacion: i.sku || (isEnvio ? "DELIVERYFEE" : ""),
           cantidad: i.cantidad,
           claveUnidad: isEnvio ? CLAVE_UNIDAD_ENVIO_DEFAULT : (i.claveUnidad || CLAVE_UNIDAD_PRODUCTO_DEFAULT),
           unidad: isEnvio ? UNIDAD_ENVIO_DEFAULT : UNIDAD_PRODUCTO_DEFAULT,

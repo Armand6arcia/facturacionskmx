@@ -384,7 +384,7 @@ export default function DashboardPage() {
                       <input
                         type="file"
                         id="prodFileInput"
-                        accept=".xls,.xlsx"
+                        accept=".xls,.xlsx,.csv"
                         className="hidden"
                         onChange={(e) => {
                           if (e.target.files && e.target.files.length > 0) {
@@ -436,7 +436,7 @@ export default function DashboardPage() {
                       <input
                         type="file"
                         id="envioFileInput"
-                        accept=".xls,.xlsx"
+                        accept=".xls,.xlsx,.csv"
                         className="hidden"
                         onChange={(e) => {
                           if (e.target.files && e.target.files.length > 0) {
@@ -509,7 +509,7 @@ export default function DashboardPage() {
               <input
                 type="file"
                 id="fileInput"
-                accept=".xls,.xlsx"
+                accept=".xls,.xlsx,.csv"
                 className="hidden"
                 onChange={(e) => {
                   if (e.target.files && e.target.files.length > 0) {

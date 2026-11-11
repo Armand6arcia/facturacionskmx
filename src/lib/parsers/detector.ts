@@ -38,6 +38,18 @@ export function detectFormat(buffer: Buffer): DetectedFormat {
     return "HTML_XLS";
   }
 
+  // Check CSV or delimited text tables (e.g. INVOICE, SOLD TO, IDX, DESCRIPTION)
+  if (
+    head.includes("invoice") ||
+    head.includes("sold to") ||
+    head.includes("bill to") ||
+    head.includes("description") ||
+    head.includes("idx") ||
+    head.includes(",")
+  ) {
+    return "BINARY_XLS";
+  }
+
   return "UNKNOWN";
 }
 

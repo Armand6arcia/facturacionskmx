@@ -347,7 +347,6 @@ export class FacturaComPacClient implements PacClient {
 
         const concepto: any = {
           ClaveProdServ: claveProdServ,
-          NoIdentificacion: c.noIdentificacion || (isEnvio ? "DELIVERYFEE" : "SKU"),
           Cantidad: c.cantidad,
           ClaveUnidad: claveUnidad,
           Unidad: unidad,
@@ -369,6 +368,12 @@ export class FacturaComPacClient implements PacClient {
             Locales: [],
           },
         };
+
+        if (c.noIdentificacion && c.noIdentificacion.trim()) {
+          concepto.NoIdentificacion = c.noIdentificacion.trim();
+        } else if (isEnvio) {
+          concepto.NoIdentificacion = "DELIVERYFEE";
+        }
         if (c.descuento) concepto.Descuento = Number(c.descuento.toFixed(2));
         return concepto;
       });

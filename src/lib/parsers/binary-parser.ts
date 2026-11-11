@@ -27,7 +27,7 @@ export function parseBinaryXls(buffer: Buffer, filename: string): ParsedDocument
     const rowStr = row.map((cell) => String(cell).trim()).join(" ");
 
     // Check No.
-    const noMatch = rowStr.match(/No\.\s*:\s*([A-Za-z0-9-_]+)/i);
+    const noMatch = rowStr.match(/(?:No\.|Invoice\s*No\.?|Order\s*No\.?)\s*:\s*([A-Za-z0-9-_]+)/i);
     if (noMatch && !metadata.docNumber) {
       metadata.docNumber = noMatch[1];
     }
@@ -48,13 +48,16 @@ export function parseBinaryXls(buffer: Buffer, filename: string): ParsedDocument
     }
 
     // Check SOLD TO / BILL TO
-    const soldToMatch = rowStr.match(/SOLD\s+TO\s*\/\s*BILL\s+TO\s*:\s*([^,\n\r]+)/i);
-    if (soldToMatch) {
+    const soldToMatch =
+      rowStr.match(/SOLD\s+TO\s*\/\s*BILL\s+TO\s*[:\s]+([^,\n\r]+)/i) ||
+      rowStr.match(/BILL\s+TO\s*[:\s]+"?([^",\n\r]+)/i) ||
+      rowStr.match(/SOLD\s+TO\s*[:\s]+"?([^",\n\r]+)/i);
+    if (soldToMatch && !metadata.soldTo) {
       metadata.soldTo = soldToMatch[1].trim();
     }
 
     // Check BUSINESS TYPE
-    const bTypeMatch = rowStr.match(/BUSINESS\s+TYPE\s*:\s*([^,\n\r]+)/i);
+    const bTypeMatch = rowStr.match(/BUSINESS\s+TYPE\s*[:\s]+([^,\n\r]+)/i);
     if (bTypeMatch) {
       metadata.businessType = bTypeMatch[1].trim();
       const bUpper = metadata.businessType.toUpperCase();
@@ -70,9 +73,11 @@ export function parseBinaryXls(buffer: Buffer, filename: string): ParsedDocument
     }
 
     // Check PAYMENT TERMS
-    const pTermsMatch = rowStr.match(/PAYMENT\s+TERMS\s*:\s*([^,\n\r]+)/i);
-    if (pTermsMatch) {
-      metadata.paymentTerms = pTermsMatch[1].trim();
+    const pTermsMatch =
+      rowStr.match(/PAYMENT(?:\s+TERMS)?\s*[:\s]+([^,\n\r]+)/i) ||
+      (rowStr.includes("PAYMENT") && rowStr.match(/(?:T\.T|TRANSFER|CASH|CARD)[^,\n\r]*/i));
+    if (pTermsMatch && !metadata.paymentTerms) {
+      metadata.paymentTerms = (typeof pTermsMatch === "string" ? pTermsMatch : pTermsMatch[1] || pTermsMatch[0]).trim();
       const ptUpper = metadata.paymentTerms.toUpperCase();
       if (ptUpper.includes("T.T") || ptUpper.includes("TRANSFER") || ptUpper.includes("ADVANCE")) {
         metadata.suggestedPaymentForm = "03"; // Transferencia
@@ -141,16 +146,34 @@ export function parseBinaryXls(buffer: Buffer, filename: string): ParsedDocument
       const row = rawRows[r];
       const rowStr = row.map((c) => String(c).trim()).join(" ");
 
-      // Stop at row "TOTAL"
-      if (/^TOTAL/i.test(rowStr) || (idxCol >= 0 && /^TOTAL/i.test(String(row[idxCol]).trim()))) {
-        // Read file total if available
+      const firstCell = idxCol >= 0 ? String(row[idxCol]).trim().toUpperCase() : "";
+
+      // Stop at summary / footer rows: SUBTOTAL, IVA, TOTAL, AUTHORIZED SIGNATURE
+      if (
+        /^SUBTOTAL/i.test(firstCell) ||
+        /^SUBTOTAL/i.test(rowStr) ||
+        /^TOTAL/i.test(firstCell) ||
+        /^TOTAL/i.test(rowStr) ||
+        /^IVA/i.test(firstCell) ||
+        /^IVA/i.test(rowStr) ||
+        /^AUTHORIZED/i.test(rowStr)
+      ) {
         if (amountCol >= 0 && row[amountCol]) {
           const tVal = parseFloat(String(row[amountCol]).replace(/[^0-9.-]/g, ""));
           if (!isNaN(tVal) && tVal > 0) {
-            fileTotal = tVal;
+            if (/SUBTOTAL/i.test(firstCell) || /SUBTOTAL/i.test(rowStr)) {
+              fileSubtotal = tVal;
+            } else if (/IVA/i.test(firstCell) || /IVA/i.test(rowStr)) {
+              fileIva = tVal;
+            } else if (/TOTAL/i.test(firstCell) || /TOTAL/i.test(rowStr)) {
+              fileTotal = tVal;
+            }
           }
         }
-        break;
+        if (/^TOTAL/i.test(firstCell) || /^TOTAL/i.test(rowStr) || /^AUTHORIZED/i.test(rowStr)) {
+          break;
+        }
+        continue;
       }
 
       const getCellVal = (cIdx: number): string => {
@@ -158,10 +181,15 @@ export function parseBinaryXls(buffer: Buffer, filename: string): ParsedDocument
         return String(row[cIdx]).trim();
       };
 
-      const sku = getCellVal(skuCol);
-      if (!sku) continue;
+      const rawSku = getCellVal(skuCol);
+      const desc = getCellVal(descCol);
 
-      const desc = getCellVal(descCol) || sku;
+      // Si no hay descripción ni SKU, ignorar renglón vacío
+      if (!desc && !rawSku) continue;
+
+      // Si no existe columna SKU en el archivo, dejamos el SKU en blanco ("") para que en la factura quede vacío
+      const sku = rawSku || "";
+
       const brand = getCellVal(brandCol);
       const hsCode = getCellVal(hsCodeCol);
       const rawBarcode = getCellVal(barcodeCol);

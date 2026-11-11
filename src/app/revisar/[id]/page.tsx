@@ -562,7 +562,7 @@ export default function ReviewPage() {
                     <input
                       type="file"
                       id="envioAdicionalInput"
-                      accept=".xls,.xlsx"
+                      accept=".xls,.xlsx,.csv"
                       className="hidden"
                       onChange={handleSubirEnvioAdicional}
                     />

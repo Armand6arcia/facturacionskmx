@@ -85,4 +85,97 @@ describe("Parser tests", () => {
     expect(formatInvoiceDescription("", "Solo Producto"))
       .toBe("Solo Producto");
   });
+
+  it("parses CSV invoice without SKU column (StyleKorean format C)", () => {
+    const rawCsv = `,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,"
+TEL : , FAX : , E-Mail : Sand@stylekorean.mx",,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,INVOICE,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,No. : IN00493733,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Invoice Date :           ,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,SOLD TO,,,,,SkinloversMX,,,,,,,,,CONTACT,,,,,,,,,sandra,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,ATTN,,,,,Gustavo Mejia,,,,,,,,,TEL,,,,,,,,,,,,,,,
+,,TEL,,,,,662 188 0077,,,,,,,,,CUSTOMER PO#,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,VAT ID,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,SHIP TO,,,,,"GUSTAVO ADOLFO MEJIA SANTELLANES
+",,,,,,,,,BILL TO,,,,"GUSTAVO ADOLFO MEJIA SANTELLANES
+",,,,,,,,,,,
+,,ATTN,,,,,Gustavo Mejia,,,,,,,,,ATTN,,,,Gustavo Mejia,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,TEL,,,,,,,,,,,,,,TEL,,,,,,,,,,,,,,,
+,,FAX,,,,,,,,,,,,,,FAX,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,SENDER VAT No,,,,,,,,,,,,,,DISCHARGING TO,,,,,,,,,,,Mexico,,,,
+,,BUSINESS TYPE,,,,,,,MX-DOMESTIC (+IVA),,,,,,,FREIGHT TERMS,,,,,,,,,,,EX-WAREHOUSE,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,SHIP VIA,,,,,,,,Envia.com,,,,,,PAYMENT,,,,,,,,,,,T.T IN ADVANCE,,,,
+,,AIRWAY BILL#,,,,,,,,,,,,,,TOTAL AMOUNT,,,,,,,,,,,"60,821.77 MXN",,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,ORIGINS,,,,,,,,KOREA,,,,,,,,,,,,,,,,,,,,,
+,,REMARK,,,,,,,,● PROMO 1,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,IDX,,,,DESCRIPTION,,,,,,BRAND,,,,,,,HS CODE,,,,,Q'TY,,,,,,PRICE,,AMOUNT
+,1.0,,,,(Renew) Oil Control Light Sunscreen 40ml,,,,,,celimax,,,,,,,3304.99.2000,,,,,4,,,,,,153.65,,614.60
+,2.0,,,,THE VITA-A Retinal Shot Tightening Booster 15ml,,,,,,celimax,,,,,,,3304.99.1000,,,,,40,,,,,,220.00,,"8,800.00"
+,3.0,,,,"[Renew] 147 Barrier Cream 50ml",,,,,,Dr.Althea,,,,,,,3304.99.1000,,,,,20,,,,,,247.45,,"4,949.00"
+,4.0,,,,"[Renew] 345 Relief Cream 50ml",,,,,,Dr.Althea,,,,,,,3304.99.1000,,,,,40,,,,,,242.09,,"9,683.60"
+,5.0,,,,0.1% Gentle Retinol Serum 30ml,,,,,,Dr.Althea,,,,,,,3304.99.1000,,,,,5,,,,,,183.30,,916.50
+,6.0,,,,Aqua Glowing Sunscreen 45ml,,,,,,Dr.Althea,,,,,,,3304.99.2000,,,,,10,,,,,,175.32,,"1,753.20"
+,7.0,,,,(Renew) Collagen Coating Hair Muscle Treatment Rinse (CER-100) 500ml,,,,,,Elizavecca,,,,,,,3305.90.1000,,,,,20,,,,,,106.17,,"2,123.40"
+,8.0,,,,(Renew) Milky Piggy Collagen Ceramide Coating Protein Treatment(CER-100) 100ml,,,,,,Elizavecca,,,,,,,3305.90.2000,,,,,20,,,,,,54.96,,"1,099.20"
+,9.0,,,,"[RENEW] PDRN PINK COLLAGEN CAPSULE CREAM 55g",,,,,,Medicube,,,,,,,3304.99.1000,,,,,40,,,,,,271.39,,"10,855.60"
+,10.0,,,,COLLAGEN JELLY CREAM 110ml,,,,,,Medicube,,,,,,,3304.99.1000,,,,,12,,,,,,233.87,,"2,806.44"
+,11.0,,,,PDRN PINK PEPTIDE SERUM 30ML,,,,,,Medicube,,,,,,,3304.99.1000,,,,,2,,,,,,0.00,,0.00
+,12.0,,,,PDRN PINK PEPTIDE SERUM 30ML,,,,,,Medicube,,,,,,,3304.99.1000,,,,,20,,,,,,184.55,,"3,691.00"
+,13.0,,,,Bean Essence 50ml,,,,,,MIXSOON,,,,,,,3304.99.1000,,,,,5,,,,,,250.10,,"1,250.50"
+,14.0,,,,Madagascar Centella Light Cleansing OIl 200ml,,,,,,Skin1004,,,,,,,3401.30.1000,,,,,10,,,,,,194.71,,"1,947.10"
+,15.0,,,,Madagascar Centella Poremizing Quick Clay Stick Mask 27g,,,,,,Skin1004,,,,,,,3401.30.1000,,,,,8,,,,,,169.67,,"1,357.36"
+,16.0,,,,"[GL] Collagen Brightening Eye Gel Cream",,,,,,TOCOBO,,,,,,,3304.99.1000,,,,,5,,,,,,117.01,,585.05
+,SUBTOTAL,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"52,432.55"
+,IVA 16%,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"8,389.22"
+,TOTAL,,,,,,,,,,,,,,,,,,,,,,261,,,,,,MXN,,"60,821.77"
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,AUTHORIZED SIGNATURE OF STYLEKOREAN MX S. DE R.L. DE C.V..,,,,,,,,,,,,,,,`;
+
+    const buffer = Buffer.from(rawCsv, "utf-8");
+    const parsed = parseDocument(buffer, "SkinloversMX.csv");
+
+    expect(parsed.docNumber).toBe("IN00493733");
+    expect(parsed.headerMetadata.suggestedPaymentForm).toBe("03");
+    expect(parsed.items.length).toBe(16);
+    expect(parsed.totalPieces).toBe(261);
+
+    // SKUs are empty strings (no SKU column in this file)
+    parsed.items.forEach((it) => {
+      expect(it.sku).toBe("");
+      expect(it.descripcion).toBeTruthy();
+    });
+
+    // Check specific items
+    expect(parsed.items[0].descripcion).toBe("celimax - (Renew) Oil Control Light Sunscreen 40ml");
+    expect(parsed.items[0].cantidad).toBe(4);
+    expect(parsed.items[0].precioUnitario).toBe(153.65);
+    expect(parsed.items[0].base).toBe(614.60);
+
+    // Promo item with 0.00 price
+    const promo = parsed.items[10];
+    expect(promo.descripcion).toBe("Medicube - PDRN PINK PEPTIDE SERUM 30ML");
+    expect(promo.cantidad).toBe(2);
+    expect(promo.precioUnitario).toBe(0);
+
+    // Totals match file
+    expect(parsed.calculatedSubtotal).toBe(52432.55);
+    expect(parsed.fileTotal).toBe(60821.77);
+  });
 });
