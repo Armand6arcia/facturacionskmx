@@ -24,6 +24,7 @@ import {
   Truck,
   Search,
   Plus,
+  FileUp,
 } from "lucide-react";
 import { SkuResolverModal } from "@/components/sku-resolver-modal";
 import { NewClientModal } from "@/components/new-client-modal";
@@ -829,14 +830,26 @@ export default function ReviewPage() {
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                       Buscar Cliente a Facturar (RFC o Razón Social)
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setIsClientModalOpen(true)}
-                      className="flex items-center gap-1 text-xs text-blue-700 font-bold hover:underline"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Agregar nuevo cliente
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsClientModalOpen(true)}
+                        className="flex items-center gap-1 text-xs text-blue-700 font-bold hover:underline"
+                        title="Subir PDF de Constancia de Situación Fiscal del SAT"
+                      >
+                        <FileUp className="h-3.5 w-3.5" />
+                        Subir Constancia Fiscal (PDF)
+                      </button>
+                      <span className="text-slate-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsClientModalOpen(true)}
+                        className="flex items-center gap-1 text-xs text-slate-600 font-medium hover:text-slate-900"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Manual
+                      </button>
+                    </div>
                   </div>
 
                   <div className="relative">
