@@ -1,6 +1,73 @@
 // src/lib/parsers/csf-parser.ts
 // Extractor inteligente de Constancia de Situación Fiscal (SAT México) para CFDI 4.0
 
+// Polyfills esenciales para entornos Node.js / Linux / Serverless donde pdfjs-dist evalúa DOMMatrix al importar
+function ensurePdfPolyfills() {
+  const g = globalThis as any;
+  if (typeof g.DOMMatrix === "undefined") {
+    g.DOMMatrix = class DOMMatrix {
+      a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+      m11 = 1; m12 = 0; m13 = 0; m14 = 0;
+      m21 = 0; m22 = 1; m23 = 0; m24 = 0;
+      m31 = 0; m32 = 0; m33 = 1; m34 = 0;
+      m41 = 0; m42 = 0; m43 = 0; m44 = 1;
+      is2D = true;
+      isIdentity = true;
+      constructor(init?: number[] | Float32Array | Float64Array) {
+        if (Array.isArray(init) || ArrayBuffer.isView(init)) {
+          const arr = Array.from(init as any) as number[];
+          if (arr.length >= 6) {
+            [this.a, this.b, this.c, this.d, this.e, this.f] = arr;
+            this.m11 = this.a; this.m12 = this.b;
+            this.m21 = this.c; this.m22 = this.d;
+            this.m41 = this.e; this.m42 = this.f;
+          }
+        }
+      }
+      translate() { return this; }
+      translateSelf() { return this; }
+      scale() { return this; }
+      scaleSelf() { return this; }
+      multiply() { return this; }
+      multiplySelf() { return this; }
+      preMultiplySelf() { return this; }
+      invertSelf() { return this; }
+      inverse() { return this; }
+      transformPoint(p: any) { return p || { x: 0, y: 0, z: 0, w: 1 }; }
+    };
+  }
+
+  if (typeof g.Path2D === "undefined") {
+    g.Path2D = class Path2D {
+      addPath() {}
+      closePath() {}
+      moveTo() {}
+      lineTo() {}
+      bezierCurveTo() {}
+      quadraticCurveTo() {}
+      arc() {}
+      arcTo() {}
+      ellipse() {}
+      rect() {}
+    };
+  }
+
+  if (typeof g.ImageData === "undefined") {
+    g.ImageData = class ImageData {
+      data: Uint8ClampedArray;
+      width: number;
+      height: number;
+      constructor(width = 1, height = 1) {
+        this.width = width;
+        this.height = height;
+        this.data = new Uint8ClampedArray(width * height * 4);
+      }
+    };
+  }
+}
+
+ensurePdfPolyfills();
+
 export interface CsfParsedData {
   rfc: string;
   razonSocial: string;
@@ -88,6 +155,7 @@ export function limpiarRazonSocialCfdi40(nombre: string): string {
  */
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   try {
+    ensurePdfPolyfills();
     const pdfModule = require("pdf-parse");
 
     // Soporta pdf-parse v2 (clase PDFParse) y v1 (función por defecto)

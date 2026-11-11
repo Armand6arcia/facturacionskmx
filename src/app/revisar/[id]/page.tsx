@@ -63,6 +63,7 @@ export default function ReviewPage() {
   // Payment defaults: DEFAULT 03 - Transferencia electrónica de fondos
   const [formaPago, setFormaPago] = useState("03");
   const [metodoPago, setMetodoPago] = useState("PUE");
+  const [usoCfdi, setUsoCfdi] = useState("G01");
   const [fechaEmision, setFechaEmision] = useState(() => new Date().toISOString().slice(0, 10));
   const [serie, setSerie] = useState("F");
 
@@ -107,9 +108,15 @@ export default function ReviewPage() {
       if (data.documento.formaPago) {
         setFormaPago(data.documento.formaPago);
       }
+      if (data.documento.usoCfdi) {
+        setUsoCfdi(data.documento.usoCfdi);
+      }
       if (data.documento.cliente) {
         setSelectedCliente(data.documento.cliente);
         setClientSearch(data.documento.cliente.razonSocial);
+        if (!data.documento.usoCfdi && data.documento.cliente.usoCfdiDefault) {
+          setUsoCfdi(data.documento.cliente.usoCfdiDefault);
+        }
       }
 
       // Extract unmapped SKUs for the resolver modal
@@ -214,6 +221,7 @@ export default function ReviewPage() {
       tipoFactura,
       formaPago,
       metodoPago,
+      usoCfdi,
       serie,
       fechaEmision,
       clienteId: tipoFactura === "CLIENTE" && selectedCliente ? selectedCliente.id : null,
@@ -881,6 +889,7 @@ export default function ReviewPage() {
                             onClick={() => {
                               setSelectedCliente(c);
                               setClientSearch(c.razonSocial);
+                              if (c.usoCfdiDefault) setUsoCfdi(c.usoCfdiDefault);
                             }}
                             className="w-full p-2.5 text-left text-xs hover:bg-blue-50 flex items-center justify-between"
                           >
@@ -897,17 +906,39 @@ export default function ReviewPage() {
 
                   {/* Tarjeta de Cliente Seleccionado */}
                   {selectedCliente ? (
-                    <div className="p-4 bg-white border border-blue-200 rounded-xl text-xs space-y-2 shadow-xs">
+                    <div className="p-4 bg-white border border-blue-200 rounded-xl text-xs space-y-3 shadow-xs">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-sm text-blue-900">{selectedCliente.razonSocial}</span>
                         <span className="font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">
                           {selectedCliente.rfc}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-600 pt-1 border-t">
-                        <div><b>Código Postal:</b> {selectedCliente.codigoPostal}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600 pt-2 border-t">
+                        <div><b>Código Postal Fiscal:</b> {selectedCliente.codigoPostal}</div>
                         <div><b>Régimen Fiscal:</b> {selectedCliente.regimenFiscal}</div>
-                        <div><b>Uso CFDI:</b> {selectedCliente.usoCfdiDefault}</div>
+                      </div>
+                      <div className="pt-2 border-t">
+                        <label className="block font-bold text-slate-700 mb-1">
+                          Uso de CFDI para esta factura:
+                        </label>
+                        <select
+                          value={usoCfdi}
+                          onChange={(e) => setUsoCfdi(e.target.value)}
+                          className="w-full px-3 py-2 border border-blue-300 rounded-lg bg-blue-50/40 font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="G01">G01 - Adquisición de mercancías</option>
+                          <option value="G03">G03 - Gastos en general</option>
+                          <option value="G02">G02 - Devoluciones, descuentos o bonificaciones</option>
+                          <option value="I01">I01 - Construcciones</option>
+                          <option value="I02">I02 - Mobiliario y equipo de oficina por inversiones</option>
+                          <option value="I03">I03 - Equipo de transporte</option>
+                          <option value="I04">I04 - Equipo de cómputo y accesorios</option>
+                          <option value="I08">I08 - Otra maquinaria y equipo</option>
+                          <option value="D01">D01 - Honorarios médicos, dentales y gastos hospitalarios</option>
+                          <option value="D04">D04 - Donativos</option>
+                          <option value="S01">S01 - Sin efectos fiscales</option>
+                          <option value="CP01">CP01 - Pagos</option>
+                        </select>
                       </div>
                     </div>
                   ) : (
@@ -1098,10 +1129,34 @@ export default function ReviewPage() {
             <div className="pt-2 border-t space-y-3">
               <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                 <CreditCard className="h-4 w-4 text-blue-600" />
-                Condiciones de Pago y Emisión
+                Uso de CFDI, Condiciones de Pago y Emisión
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Uso de CFDI (Catálogo SAT)
+                  </label>
+                  <select
+                    value={usoCfdi}
+                    onChange={(e) => setUsoCfdi(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="G01">G01 - Adquisición de mercancías</option>
+                    <option value="G03">G03 - Gastos en general</option>
+                    <option value="G02">G02 - Devoluciones, descuentos o bonificaciones</option>
+                    <option value="I01">I01 - Construcciones</option>
+                    <option value="I02">I02 - Mobiliario y equipo de oficina por inversiones</option>
+                    <option value="I03">I03 - Equipo de transporte</option>
+                    <option value="I04">I04 - Equipo de cómputo y accesorios</option>
+                    <option value="I08">I08 - Otra maquinaria y equipo</option>
+                    <option value="D01">D01 - Honorarios médicos, dentales y gastos hospitalarios</option>
+                    <option value="D04">D04 - Donativos</option>
+                    <option value="S01">S01 - Sin efectos fiscales</option>
+                    <option value="CP01">CP01 - Pagos</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Forma de Pago (Por default: Transferencia)
@@ -1172,7 +1227,7 @@ export default function ReviewPage() {
                   </span>
                   {selectedCliente && (
                     <div className="text-slate-500 font-mono text-[11px] mt-0.5">
-                      RFC: {selectedCliente.rfc} • C.P. {selectedCliente.codigoPostal}
+                      RFC: {selectedCliente.rfc} • C.P. {selectedCliente.codigoPostal} • Uso: <b>{usoCfdi}</b>
                     </div>
                   )}
                 </div>
@@ -1276,6 +1331,7 @@ export default function ReviewPage() {
           setClientes((prev) => [nc, ...prev]);
           setSelectedCliente(nc);
           setClientSearch(nc.razonSocial);
+          if (nc.usoCfdiDefault) setUsoCfdi(nc.usoCfdiDefault);
         }}
       />
     </div>
