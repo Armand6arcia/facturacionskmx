@@ -64,7 +64,7 @@ export default function ReviewPage() {
   const [formaPago, setFormaPago] = useState("03");
   const [metodoPago, setMetodoPago] = useState("PUE");
   const [fechaEmision, setFechaEmision] = useState(() => new Date().toISOString().slice(0, 10));
-  const [serie, setSerie] = useState("A");
+  const [serie, setSerie] = useState("F");
 
   // Global invoice fields
   const [periodicidad, setPeriodicidad] = useState("04");
@@ -223,14 +223,14 @@ export default function ReviewPage() {
       patchBody.rfcReceptor = "XAXX010101000";
       patchBody.nombreReceptor = "PUBLICO EN GENERAL";
       patchBody.regimenReceptor = "616";
-      patchBody.cpReceptor = "06600";
+      patchBody.cpReceptor = "54090";
       patchBody.usoCfdi = "S01";
       patchBody.infoGlobal = { periodicidad, meses: mesGlobal, año: Number(añoGlobal) };
     } else if (tipoFactura === "GLOBAL_EXTRANJERO") {
       patchBody.rfcReceptor = "XEXX010101000";
       patchBody.nombreReceptor = "PUBLICO GENERAL EXTRANJERO";
       patchBody.regimenReceptor = "616";
-      patchBody.cpReceptor = "06600";
+      patchBody.cpReceptor = "54090";
       patchBody.usoCfdi = "S01";
       patchBody.datosExtranjero = { pais: paisResidencia, numRegIdTrib, tipoExportacion, ivaCero };
     } else if (tipoFactura === "TRASLADO") {

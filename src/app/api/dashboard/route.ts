@@ -45,13 +45,15 @@ export async function GET() {
 
     // Datos por defecto de la empresa emisora
     const empresa = {
-      razonSocial: process.env.EMISOR_NOMBRE || "STYLE KOREAN MEXICO S.A. DE C.V.",
-      rfc: process.env.EMISOR_RFC || "SKM220101XYZ",
+      razonSocial: process.env.EMISOR_NOMBRE || "STYLEKOREAN MX",
+      rfc: process.env.EMISOR_RFC || "SMX250408I48",
       regimenFiscal: process.env.EMISOR_REGIMEN || "601",
       regimenDescripcion: "General de Ley Personas Morales",
-      codigoPostal: process.env.EMISOR_CP || "06600",
-      lugarExpedicion: "Cuauhtémoc, Ciudad de México",
-      seriePorDefecto: "A",
+      codigoPostal: process.env.EMISOR_CP || "54090",
+      lugarExpedicion: "54090",
+      domicilioFiscal:
+        "AV. JESUS REYES HEROLES 293 Col. UNID.MARAVILLAS CEYLAN, C.P. 54090, TLALNEPANTLA DE BAZ, TLALNEPANTLA DE BAZ, México",
+      seriePorDefecto: "F",
       pacProvider: process.env.PAC_PROVIDER || "mock",
       versionCfdi: "4.0",
     };

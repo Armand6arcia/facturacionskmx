@@ -141,14 +141,14 @@ export async function POST(req: NextRequest) {
       moneda: "MXN",
       tipoDeComprobante: doc.tipoFactura === "TRASLADO" ? "T" : "I",
       exportacion: doc.tipoFactura === "GLOBAL_EXTRANJERO" ? "02" : "01",
-      lugarExpedicion: "06600",
+      lugarExpedicion: process.env.EMISOR_CP || "54090",
       subtotal: doc.subtotal,
       total: doc.total,
       totalIva: doc.iva,
       emisor: {
-        rfc: "SKM220101AA1",
-        nombre: "SKINCARE MEXICO DISTRIBUTION S.A. DE C.V.",
-        regimenFiscal: "601",
+        rfc: process.env.EMISOR_RFC || "SMX250408I48",
+        nombre: process.env.EMISOR_NOMBRE || "STYLEKOREAN MX",
+        regimenFiscal: process.env.EMISOR_REGIMEN || "601",
       },
       receptor: {
         rfc: doc.rfcReceptor || doc.cliente?.rfc || "XAXX010101000",

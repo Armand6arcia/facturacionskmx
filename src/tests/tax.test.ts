@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { calculateDocumentTaxes, calculateLineTaxes, round2 } from "../lib/tax/calculator";
+import { numeroALetras } from "../lib/tax/number-to-words";
 
 describe("Tax Calculation Engine", () => {
   it("calculates line rounding correctly: base = round(qty * price, 2), iva = round(base * 0.16, 2)", () => {
@@ -48,6 +49,20 @@ describe("Tax Calculation Engine", () => {
     expect(resEx.base).toBe(0);
     expect(resEx.iva).toBe(0);
     expect(resEx.descuento).toBe(0);
+  });
+
+  it("converts numbers to official Mexican legal currency text (numeroALetras)", () => {
+    // Exact amount from official StyleKorean invoice F-747: 960,456.57
+    expect(numeroALetras(960456.57)).toBe(
+      "Novecientos sesenta mil cuatrocientos cincuenta y seis pesos 57/100 M.N."
+    );
+
+    // Common edge cases
+    expect(numeroALetras(0)).toBe("Cero pesos 00/100 M.N.");
+    expect(numeroALetras(1)).toBe("Un pesos 00/100 M.N.");
+    expect(numeroALetras(100)).toBe("Cien pesos 00/100 M.N.");
+    expect(numeroALetras(1500.5)).toBe("Mil quinientos pesos 50/100 M.N.");
+    expect(numeroALetras(1000000)).toBe("Un millón pesos 00/100 M.N.");
   });
 });
 

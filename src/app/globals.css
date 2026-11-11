@@ -30,14 +30,29 @@ body {
 }
 
 @media print {
+  @page {
+    size: letter;
+    margin: 8mm 10mm 8mm 10mm;
+  }
   body {
     background-color: #fff !important;
+    color: #000 !important;
   }
-  .no-print {
+  header, nav, footer, .no-print {
     display: none !important;
   }
   .print-only {
     display: block !important;
   }
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+  #factura-print-area {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
 }
-

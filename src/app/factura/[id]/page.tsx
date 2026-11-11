@@ -3,21 +3,54 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import QRCode from "qrcode";
 import {
   Download,
   Printer,
   XCircle,
-  CheckCircle2,
-  AlertTriangle,
   ArrowLeft,
-  Building,
-  Calendar,
   FileCode,
-  ShieldCheck,
-  QrCode,
-  Truck,
+  FileText,
+  AlertTriangle,
   RotateCcw,
 } from "lucide-react";
+import { numeroALetras } from "@/lib/tax/number-to-words";
+
+const FORMAS_PAGO: Record<string, string> = {
+  "01": "01 - Efectivo",
+  "02": "02 - Cheque nominativo",
+  "03": "03 - Transferencia electrónica de fondos",
+  "04": "04 - Tarjeta de crédito",
+  "28": "28 - Tarjeta de débito",
+  "99": "99 - Por definir",
+};
+
+const METODOS_PAGO: Record<string, string> = {
+  PUE: "PUE - Pago en una sola exhibición",
+  PPD: "PPD - Pago en parcialidades o diferido",
+};
+
+const REGIMENES_FISCALES: Record<string, string> = {
+  "601": "601 - General de Ley Personas Morales",
+  "603": "603 - Personas Morales con Fines no Lucrativos",
+  "605": "605 - Sueldos y Salarios e Ingresos Asimilados a Salarios",
+  "606": "606 - Arrendamiento",
+  "612": "612 - Personas Físicas con Actividades Empresariales y Profesionales",
+  "616": "616 - Sin obligaciones fiscales",
+  "621": "621 - Incorporación Fiscal",
+  "626": "626 - Régimen Simplificado de Confianza",
+};
+
+const USOS_CFDI: Record<string, string> = {
+  G01: "G01 - Adquisición de mercancías",
+  G02: "G02 - Devoluciones, descuentos o bonificaciones",
+  G03: "G03 - Gastos en general",
+  I01: "I01 - Construcciones",
+  I02: "I02 - Mobiliario y equipo de oficina por inversiones",
+  I04: "I04 - Equipo de cómputo y accesorios",
+  S01: "S01 - Sin efectos fiscales",
+  CP01: "CP01 - Pagos",
+};
 
 export default function FacturaPage() {
   const params = useParams();
@@ -27,6 +60,7 @@ export default function FacturaPage() {
   const [documento, setDocumento] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
   // Cancellation modal state
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -53,18 +87,38 @@ export default function FacturaPage() {
     if (docId) fetchDoc();
   }, [docId]);
 
+  // Generar Código QR Oficial del SAT cuando haya timbre disponible
+  useEffect(() => {
+    if (!documento) return;
+    const timbre = documento.timbre;
+    const uuid = timbre?.uuid || "";
+    const emisorRfc = "SMX250408I48";
+    const receptorRfc = documento.rfcReceptor || documento.cliente?.rfc || "XAXX010101000";
+    const totalFormatted = (documento.total || 0).toFixed(6);
+    const selloEnd = timbre?.selloCfd ? timbre.selloCfd.slice(-8) : "00000000";
+
+    const satUrl = `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=${uuid}&re=${emisorRfc}&rr=${receptorRfc}&tt=${totalFormatted}&fe=${selloEnd}`;
+
+    QRCode.toDataURL(satUrl, {
+      margin: 1,
+      width: 256,
+      color: {
+        dark: "#183661",
+        light: "#FFFFFF",
+      },
+    })
+      .then((url) => setQrDataUrl(url))
+      .catch((err) => console.error("Error generando QR SAT:", err));
+  }, [documento]);
+
   // Download XML file
   const handleDownloadXml = () => {
-    if (!documento?.timbre?.xmlContent) return;
-    const blob = new Blob([documento.timbre.xmlContent], { type: "application/xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `CFDI_${documento.timbre.uuid}.xml`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    window.location.href = `/api/documentos/${docId}/xml`;
+  };
+
+  // Download official PDF (Factura.com API o Imprimir)
+  const handleDownloadPdf = () => {
+    window.open(`/api/documentos/${docId}/pdf`, "_blank");
   };
 
   // Cancel CFDI
@@ -91,7 +145,7 @@ export default function FacturaPage() {
       setIsCancelModalOpen(false);
       fetchDoc();
     } catch (err: any) {
-      alert(err.message || "Error al cancelar");
+      alert(err.message || "Error al cancelar comprobante");
     } finally {
       setCancelando(false);
     }
@@ -99,19 +153,21 @@ export default function FacturaPage() {
 
   if (loading) {
     return (
-      <div className="py-20 flex flex-col items-center justify-center space-y-4">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-semibold text-slate-600">Generando vista del CFDI 4.0...</p>
+      <div className="py-24 flex flex-col items-center justify-center space-y-4">
+        <div className="w-10 h-10 border-4 border-[#183661] border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-semibold text-slate-600">
+          Cargando representación impresa del CFDI 4.0...
+        </p>
       </div>
     );
   }
 
   if (error || !documento) {
     return (
-      <div className="py-12 text-center space-y-4">
+      <div className="py-16 text-center space-y-4">
         <p className="text-red-600 font-bold">{error || "Factura no encontrada"}</p>
-        <Link href="/" className="text-blue-600 underline text-sm">
-          Volver a inicio
+        <Link href="/historial" className="text-[#183661] underline text-sm font-semibold">
+          Volver al Historial CFDI
         </Link>
       </div>
     );
@@ -120,33 +176,43 @@ export default function FacturaPage() {
   const timbre = documento.timbre;
   const isCancelado = documento.estado === "CANCELADO" || timbre?.estado === "CANCELADO";
 
-  let datosCartaPorte: any = null;
-  if (documento.tipoFactura === "TRASLADO" && documento.datosCartaPorte) {
-    try {
-      datosCartaPorte = JSON.parse(documento.datosCartaPorte);
-    } catch (e) {}
-  }
+  const formaPagoLabel = FORMAS_PAGO[documento.formaPago] || documento.formaPago;
+  const metodoPagoLabel = METODOS_PAGO[documento.metodoPago] || documento.metodoPago;
+  const regimenEmisorLabel = REGIMENES_FISCALES["601"] || "601 - General de Ley Personas Morales";
+  const receptorRegimen = documento.regimenReceptor || documento.cliente?.regimenFiscal || "601";
+  const regimenReceptorLabel = REGIMENES_FISCALES[receptorRegimen] || `${receptorRegimen} - Régimen Fiscal`;
+  const usoCfdiVal = documento.usoCfdi || documento.cliente?.usoCfdiDefault || "G01";
+  const usoCfdiLabel = USOS_CFDI[usoCfdiVal] || `${usoCfdiVal} - Adquisición de mercancías`;
+
+  const fechaExpedicionStr = documento.fechaEmision
+    ? new Date(documento.fechaEmision).toISOString().slice(0, 19)
+    : new Date().toISOString().slice(0, 19);
+
+  const fechaTimbradoStr = timbre?.fechaTimbrado
+    ? new Date(timbre.fechaTimbrado).toISOString().slice(0, 19)
+    : fechaExpedicionStr;
+
+  const totalEnLetras = numeroALetras(documento.total || 0);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Top Action Bar (hidden when printing) */}
       <div className="no-print flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border shadow-sm">
         <div className="flex items-center gap-3">
           <Link
-            href={`/revisar/${docId}`}
+            href="/historial"
             className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
-            title="Volver a la revisión"
+            title="Volver al Historial"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <span className="font-extrabold text-base text-slate-900">
-              Comprobante Fiscal Digital por Internet (CFDI 4.0)
-            </span>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-slate-500">Folio: {documento.serie}-{documento.folio}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-base text-slate-900">
+                Factura {documento.serie || "F"} {documento.folio || ""}
+              </span>
               <span
-                className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold ${
                   isCancelado
                     ? "bg-red-100 text-red-800"
                     : "bg-emerald-100 text-emerald-800"
@@ -155,33 +221,47 @@ export default function FacturaPage() {
                 {isCancelado ? "CANCELADO" : "VIGENTE"}
               </span>
             </div>
+            <p className="text-xs text-slate-500">
+              CFDI 4.0 • {documento.nombreReceptor || documento.cliente?.razonSocial || "Receptor"}
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleDownloadXml}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold shadow-sm transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold shadow-sm transition"
+            title="Descargar archivo XML timbrado"
           >
             <Download className="h-4 w-4" />
             Descargar XML 4.0
           </button>
 
           <button
+            onClick={handleDownloadPdf}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#183661] hover:bg-[#122847] text-white rounded-xl text-xs font-semibold shadow-sm transition"
+            title="Descargar PDF de Factura.com"
+          >
+            <FileText className="h-4 w-4" />
+            Descargar PDF Oficial
+          </button>
+
+          <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition"
+            title="Imprimir o guardar como PDF"
           >
             <Printer className="h-4 w-4" />
-            Imprimir / Guardar PDF
+            Imprimir
           </button>
 
           {!isCancelado && (
             <button
               onClick={() => setIsCancelModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-semibold transition"
+              className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-semibold transition"
             >
               <XCircle className="h-4 w-4" />
-              Cancelar CFDI (Simulado)
+              Cancelar CFDI
             </button>
           )}
         </div>
@@ -194,217 +274,387 @@ export default function FacturaPage() {
         </div>
       )}
 
-      {/* Printable Invoice Container */}
-      <div className="relative bg-white rounded-2xl border shadow-md p-8 sm:p-12 overflow-hidden text-slate-800">
-
-        {/* Cancellation Stamp Banner if cancelled */}
+      {/* ============================================================ */}
+      {/* FACTURA FISCAL CONTAINER (IDENTICAL TO STYLEKOREAN MX PDF) */}
+      {/* ============================================================ */}
+      <div
+        id="factura-print-area"
+        className="bg-white rounded-2xl border border-slate-200 shadow-lg p-8 sm:p-12 text-slate-800 print:border-none print:shadow-none print:p-0 print:m-0"
+        style={{ fontFamily: "'Helvetica Neue', Arial, sans-serif" }}
+      >
+        {/* Banner de Cancelado en caso de estar cancelada */}
         {isCancelado && (
-          <div className="mb-6 p-4 bg-red-600 text-white text-center font-extrabold tracking-wider uppercase text-sm rounded-xl shadow-sm">
-            *** COMPROBANTE CANCELADO (SIMULADO EN AMBIENTE DEMO) ***
+          <div className="mb-6 p-3 bg-red-600 text-white text-center font-extrabold tracking-widest uppercase text-sm rounded-xl">
+            *** COMPROBANTE FISCAL CANCELADO ***
           </div>
         )}
 
-        {/* Header: Emisor & Folio */}
-        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-8 border-b pb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="h-8 w-8 bg-blue-600 text-white font-bold rounded flex items-center justify-center text-sm">
-                SK
-              </div>
-              <h2 className="font-extrabold text-lg text-slate-900 leading-tight">
-                SKINCARE MEXICO DISTRIBUTION S.A. DE C.V.
-              </h2>
-            </div>
-            <div className="text-xs text-slate-600 space-y-0.5">
-              <p><b>RFC Emisor:</b> SKM220101AA1</p>
-              <p><b>Régimen Fiscal:</b> 601 - General de Ley Personas Morales</p>
-              <p><b>Lugar de Expedición:</b> C.P. 06600, Ciudad de México</p>
-              <p><b>Efecto de comprobante:</b> {documento.tipoFactura === "TRASLADO" ? "T - Traslado" : "I - Ingreso"}</p>
-            </div>
+        {/* ------------------------------------------------------------ */}
+        {/* 1. HEADER: BRAND LOGO (LEFT) & FACTURA METADATA (RIGHT)       */}
+        {/* ------------------------------------------------------------ */}
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pb-6">
+          {/* Logo Emisor */}
+          <div className="pt-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-stylekorean.png"
+              alt="StyleKorean MX"
+              className="h-12 sm:h-14 w-auto object-contain"
+            />
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-xl border text-xs space-y-1 sm:text-right">
-            <div className="text-sm font-extrabold text-blue-900">
-              FACTURA ELECTRÓNICA CFDI 4.0
+          {/* Caja Factura y Metadatos */}
+          <div className="w-full sm:w-[380px] text-xs">
+            {/* Navy Pill "Factura" */}
+            <div className="bg-[#183661] text-white font-extrabold text-center py-1.5 px-6 rounded-2xl text-base tracking-wider shadow-sm mb-3">
+              Factura
             </div>
-            <p><b>Serie y Folio:</b> {documento.serie}-{documento.folio}</p>
-            <p><b>No. Documento Origen:</b> {documento.docNumber}</p>
+
+            {/* Metadatos en dos columnas */}
+            <div className="space-y-1 text-slate-700 text-[11px]">
+              <div className="flex justify-between">
+                <span className="font-bold text-[#183661]">Tipo de Comprobante:</span>
+                <span className="text-right">
+                  {documento.tipoFactura === "TRASLADO" ? "T - Traslado" : "I - Ingreso"}
+                </span>
+              </div>
+              <div className="flex justify-between items-start">
+                <span className="font-bold text-[#183661]">Folio Fiscal:</span>
+                <span className="font-mono text-[10px] text-right break-all max-w-[240px]">
+                  {timbre?.uuid || "PENDIENTE"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-bold text-[#183661]">Fecha de Expedición:</span>
+                <span className="font-mono">{fechaExpedicionStr}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-bold text-[#183661]">Lugar de Expedición:</span>
+                <span>
+                  54090{" "}
+                  <span className="font-bold text-[#183661] ml-2">Exportación:</span>{" "}
+                  {documento.tipoFactura === "GLOBAL_EXTRANJERO" ? "02 - Definitiva" : "No aplica"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-bold text-[#183661]">Cert CSD:</span>
+                <span className="font-mono">
+                  {timbre?.noCertificadoSat || "00001000000722399245"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-bold text-[#183661]">Folio interno:</span>
+                <span className="font-bold">
+                  {documento.serie || "F"} {documento.folio || ""}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-bold text-[#183661]">Orden/Pedido:</span>
+                <span className="font-semibold">{documento.docNumber}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ------------------------------------------------------------ */}
+        {/* 2. SECTION BANNER: DATOS DEL EMISOR                          */}
+        {/* ------------------------------------------------------------ */}
+        <div className="mt-2 mb-4">
+          <div className="bg-[#183661] text-white font-bold text-center py-1 rounded-2xl text-xs sm:text-sm tracking-wide shadow-sm">
+            Datos del Emisor
+          </div>
+          <div className="pt-2 px-2 text-[11px] space-y-0.5 text-slate-800">
+            <p className="font-extrabold text-xs text-[#183661] uppercase tracking-wide">
+              STYLEKOREAN MX
+            </p>
             <p>
-              <b>Folio Fiscal (UUID):</b><br />
-              <span className="font-mono text-[11px] font-bold text-slate-900 break-all">
-                {timbre?.uuid || "N/A - PENDIENTE"}
+              <span className="font-bold text-[#183661]">RFC: </span>
+              <span className="font-mono font-semibold">SMX250408I48</span>
+            </p>
+            <p>
+              <span className="font-bold text-[#183661]">DOMICILIO FISCAL: </span>
+              AV. JESUS REYES HEROLES 293 Col. UNID.MARAVILLAS CEYLAN, C.P. 54090, TLALNEPANTLA DE BAZ, TLALNEPANTLA DE BAZ, México
+            </p>
+            <p>
+              <span className="font-bold text-[#183661]">RÉGIMEN FISCAL: </span>
+              {regimenEmisorLabel}
+            </p>
+          </div>
+        </div>
+
+        {/* ------------------------------------------------------------ */}
+        {/* 3. SECTION BANNER: DATOS DEL RECEPTOR                        */}
+        {/* ------------------------------------------------------------ */}
+        <div className="mt-4 mb-5">
+          <div className="bg-[#183661] text-white font-bold text-center py-1 rounded-2xl text-xs sm:text-sm tracking-wide shadow-sm">
+            Datos del Receptor
+          </div>
+          <div className="pt-2 px-2 text-[11px] space-y-0.5 text-slate-800">
+            <p className="font-extrabold text-xs text-[#183661] uppercase tracking-wide">
+              {documento.nombreReceptor || documento.cliente?.razonSocial || "PUBLICO EN GENERAL"}
+            </p>
+            <p>
+              <span className="font-bold text-[#183661]">USO CFDI: </span>
+              {usoCfdiLabel}
+            </p>
+            <p>
+              <span className="font-bold text-[#183661]">RFC: </span>
+              <span className="font-mono font-semibold">
+                {documento.rfcReceptor || documento.cliente?.rfc || "XAXX010101000"}
               </span>
             </p>
-            <p><b>No. Serie CSD del SAT:</b> {timbre?.noCertificadoSat || "00001000000504465028"}</p>
-            <p><b>Fecha y Hora de Certificación:</b> {timbre?.fechaTimbrado ? new Date(timbre.fechaTimbrado).toLocaleString("es-MX") : new Date().toLocaleString("es-MX")}</p>
-          </div>
-        </div>
-
-        {/* Receptor & Payment Details */}
-        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-8 py-6 border-b text-xs">
-          <div>
-            <h3 className="font-bold uppercase tracking-wider text-slate-400 text-[11px] mb-2">
-              Datos del Receptor
-            </h3>
-            <div className="space-y-1 text-slate-700">
-              <p className="font-bold text-sm text-slate-900">
-                {documento.nombreReceptor || documento.cliente?.razonSocial || "PUBLICO EN GENERAL"}
-              </p>
-              <p><b>RFC:</b> {documento.rfcReceptor || documento.cliente?.rfc || "XAXX010101000"}</p>
-              <p><b>Domicilio Fiscal (C.P.):</b> {documento.cpReceptor || documento.cliente?.codigoPostal || "06600"}</p>
-              <p><b>Régimen Fiscal:</b> {documento.regimenReceptor || documento.cliente?.regimenFiscal || "616"}</p>
-              <p><b>Uso CFDI:</b> {documento.usoCfdi || documento.cliente?.usoCfdiDefault || "G03"}</p>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-bold uppercase tracking-wider text-slate-400 text-[11px] mb-2">
-              Condiciones de Pago
-            </h3>
-            <div className="space-y-1 text-slate-700">
-              <p><b>Forma de Pago:</b> {documento.formaPago} - Transferencia electrónica</p>
-              <p><b>Método de Pago:</b> {documento.metodoPago} - Pago en una sola exhibición</p>
-              <p><b>Moneda:</b> MXN - Peso Mexicano</p>
-              <p><b>Exportación:</b> {documento.tipoFactura === "GLOBAL_EXTRANJERO" ? "02 - Definitiva" : "01 - No aplica"}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Complemento Carta Porte (if applicable) */}
-        {datosCartaPorte && (
-          <div className="relative z-10 py-6 border-b bg-blue-50/50 -mx-8 px-8 sm:-mx-12 sm:px-12">
-            <div className="flex items-center gap-2 mb-3">
-              <Truck className="h-5 w-5 text-blue-700" />
-              <h3 className="font-bold text-blue-900 text-xs sm:text-sm uppercase tracking-wider">
-                Complemento Carta Porte Versión 3.1 (CFDI de Traslado)
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-700">
-              <div>
-                <p><b>Origen:</b> {datosCartaPorte.origen}</p>
-                <p><b>Destino:</b> {datosCartaPorte.destino}</p>
-                <p><b>Distancia Recorrida:</b> {datosCartaPorte.distanciaKm} km</p>
-              </div>
-              <div>
-                <p><b>Vehículo:</b> {datosCartaPorte.vehiculo} (Placas: <span className="font-mono font-bold">{datosCartaPorte.placas}</span>)</p>
-                <p><b>Operador:</b> {datosCartaPorte.operador} (RFC: <span className="font-mono">{datosCartaPorte.rfcOperador}</span>)</p>
-                <p><b>Peso Bruto Total:</b> {documento.pesoTotalKg} kg (con embalaje)</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Lines Table */}
-        <div className="relative z-10 py-6">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-300 font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-                <th className="pb-2">Clave SAT</th>
-                <th className="pb-2">SKU</th>
-                <th className="pb-2">Descripción</th>
-                <th className="pb-2 text-right">Cant.</th>
-                <th className="pb-2 text-right">Precio Unit.</th>
-                <th className="pb-2 text-right">IVA (16%)</th>
-                <th className="pb-2 text-right">Importe</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {documento.items
-                .filter((i: any) => !i.excluido)
-                .map((it: any) => (
-                  <tr key={it.id} className="py-2">
-                    <td className="py-2 font-mono text-slate-500">{it.claveProdServ || "53131600"}</td>
-                    <td className="py-2 font-mono font-semibold">{it.sku}</td>
-                    <td className="py-2 text-slate-800">{it.descripcion}</td>
-                    <td className="py-2 text-right font-mono">{it.cantidad}</td>
-                    <td className="py-2 text-right font-mono">${it.precioUnitario.toFixed(2)}</td>
-                    <td className="py-2 text-right font-mono">${it.iva.toFixed(2)}</td>
-                    <td className="py-2 text-right font-mono font-bold">${it.base.toFixed(2)}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Totals Summary */}
-        <div className="relative z-10 border-t pt-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 text-xs">
-          <div className="max-w-xs text-slate-500 space-y-1">
-            <p><b>Total con letra:</b></p>
-            <p className="italic uppercase font-medium text-slate-700">
-              ** Cuarenta y ocho mil setecientos... (Importe total en Moneda Nacional M.N.) **
+            <p>
+              <span className="font-bold text-[#183661]">DOMICILIO FISCAL: </span>
+              C.P. {documento.cpReceptor || documento.cliente?.codigoPostal || "54090"}, MEX
+            </p>
+            <p>
+              <span className="font-bold text-[#183661]">RÉGIMEN FISCAL: </span>
+              {regimenReceptorLabel}
             </p>
           </div>
+        </div>
 
-          <div className="w-full sm:w-64 space-y-2 border-t sm:border-t-0 pt-2 sm:pt-0">
-            <div className="flex justify-between text-slate-600">
-              <span>Subtotal:</span>
-              <span className="font-mono font-semibold">${documento.subtotal.toFixed(2)}</span>
+        {/* ------------------------------------------------------------ */}
+        {/* 4. TABLE OF CONCEPTS (IDENTICAL TO STYLEKOREAN MX PDF)       */}
+        {/* ------------------------------------------------------------ */}
+        <div className="mt-6 mb-6">
+          {/* Header Row Rounded Navy Pill */}
+          <div className="bg-[#183661] text-white font-bold text-[11px] py-1.5 px-3 rounded-2xl flex items-center shadow-sm">
+            <div className="w-[12%]">Unidad</div>
+            <div className="w-[14%]">C. Prod/Serv</div>
+            <div className="w-[12%] text-right pr-2">Cantidad</div>
+            <div className="w-[16%] text-center">No. Ident.</div>
+            <div className="w-[28%] pl-2">Descripción</div>
+            <div className="w-[9%] text-right">P. Unitario</div>
+            <div className="w-[9%] text-right">Importe</div>
+          </div>
+
+          {/* Items List */}
+          <div className="divide-y divide-slate-100 text-[11px] pt-1">
+            {documento.items
+              .filter((it: any) => !it.excluido)
+              .map((it: any) => {
+                const cantFormatted = (it.cantidad || 0).toLocaleString("es-MX", {
+                  minimumFractionDigits: 3,
+                  maximumFractionDigits: 3,
+                });
+                const puFormatted = (it.precioUnitario || 0).toLocaleString("es-MX", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
+                const importeFormatted = (it.base || 0).toLocaleString("es-MX", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
+                const ivaFormatted = (it.iva || 0).toLocaleString("es-MX", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
+
+                return (
+                  <div key={it.id} className="py-2.5 px-3 text-slate-800">
+                    {/* Main Row */}
+                    <div className="flex items-start">
+                      <div className="w-[12%] text-slate-700">
+                        {it.claveUnidad ? `${it.claveUnidad}/Pieza` : "H87/Pieza"}
+                      </div>
+                      <div className="w-[14%] font-mono text-slate-700">
+                        {it.claveProdServ || "53131613"}
+                      </div>
+                      <div className="w-[12%] text-right pr-2 font-mono">
+                        {cantFormatted}
+                      </div>
+                      <div className="w-[16%] text-center font-mono text-[10px] text-slate-600 break-all px-1">
+                        {it.barcode || it.sku || ""}
+                      </div>
+                      <div className="w-[28%] pl-2 font-medium text-slate-900 leading-tight">
+                        {it.descripcion}
+                      </div>
+                      <div className="w-[9%] text-right font-mono">
+                        $ {puFormatted}
+                      </div>
+                      <div className="w-[9%] text-right font-mono font-semibold">
+                        $ {importeFormatted}
+                      </div>
+                    </div>
+
+                    {/* Sub-row: Sí objeto de impuesto / IVA */}
+                    <div className="flex justify-between items-center text-[10px] text-slate-500 pt-1 pl-[38%]">
+                      <span>Sí objeto de impuesto.</span>
+                      <span className="font-mono text-slate-600 font-medium">
+                        + IVA (16%): ${ivaFormatted}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+
+        {/* ------------------------------------------------------------ */}
+        {/* 5. TOTALS & AMOUNTS IN WORDS & PAYMENT TERMS                 */}
+        {/* ------------------------------------------------------------ */}
+        <div className="mt-6 pt-4 border-t border-slate-200">
+          {/* Subtotal, IVA, Total a la derecha */}
+          <div className="flex justify-end mb-4">
+            <div className="w-64 space-y-1 text-right text-xs">
+              <div className="flex justify-between">
+                <span className="font-extrabold text-[#183661]">SUBTOTAL:</span>
+                <span className="font-mono font-bold">
+                  $ {(documento.subtotal || 0).toLocaleString("es-MX", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-extrabold text-[#183661]">+ IVA (16%):</span>
+                <span className="font-mono font-bold">
+                  $ {(documento.iva || 0).toLocaleString("es-MX", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm pt-1 border-t border-slate-300">
+                <span className="font-extrabold text-[#183661]">TOTAL:</span>
+                <span className="font-mono font-extrabold text-slate-900">
+                  $ {(documento.total || 0).toLocaleString("es-MX", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between text-slate-600">
-              <span>IVA Trasladado (16%):</span>
-              <span className="font-mono font-semibold">${documento.iva.toFixed(2)}</span>
+          </div>
+
+          {/* Importe con Letra & Condiciones de Pago */}
+          <div className="space-y-3 pt-2 text-[11px] text-slate-800">
+            {/* Total con letra */}
+            <div className="font-bold text-xs text-slate-900">
+              {totalEnLetras}
             </div>
-            <div className="flex justify-between font-extrabold text-sm text-slate-900 border-t pt-2">
-              <span>TOTAL:</span>
-              <span className="font-mono text-base">${documento.total.toFixed(2)} MXN</span>
+
+            {/* Condiciones de Pago alineadas a la derecha/centro como en PDF */}
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-2 text-[11px]">
+              <div>
+                <p>
+                  <span className="font-bold text-[#183661]">Fecha de Certificación: </span>
+                  <span className="font-mono">{fechaTimbradoStr}</span>
+                </p>
+              </div>
+
+              <div className="space-y-1 sm:text-right">
+                <p>
+                  <span className="font-bold text-[#183661]">Forma de Pago: </span>
+                  {formaPagoLabel}
+                </p>
+                <p>
+                  <span className="font-bold text-[#183661]">Método de Pago: </span>
+                  {metodoPagoLabel}
+                </p>
+                <p>
+                  <span className="font-bold text-[#183661]">Moneda: </span>
+                  MXN
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Footer: Fiscal Signatures, QR and Cadena Original */}
-        <div className="relative z-10 mt-8 pt-6 border-t border-dashed border-slate-300 grid grid-cols-1 sm:grid-cols-12 gap-6 text-[10px] text-slate-500">
-          {/* Simulated QR Code box */}
-          <div className="sm:col-span-2 flex flex-col items-center justify-center p-3 border rounded-xl bg-slate-50">
-            <QrCode className="h-20 w-20 text-slate-800" />
-            <span className="text-[9px] text-slate-400 mt-1 font-mono">https://sat.gob.mx</span>
+        {/* ------------------------------------------------------------ */}
+        {/* 6. FISCAL SECTION: CADENA ORIGINAL, SELLOS & QR DEL SAT     */}
+        {/* ------------------------------------------------------------ */}
+        <div className="mt-8 pt-6 border-t border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+          {/* Sellos Digitales y Cadena Original (Col 9) */}
+          <div className="md:col-span-9 space-y-3 text-[9px] text-slate-600">
+            <div>
+              <div className="font-bold text-[10px] text-[#183661] uppercase tracking-wide">
+                CADENA ORIGINAL DEL COMPLEMENTO DE CERTIFICACION DIGITAL DEL SAT
+              </div>
+              <div className="font-mono break-all leading-tight text-[8.5px] text-slate-700 mt-0.5">
+                {timbre?.cadenaOriginal ||
+                  `||1.1|${timbre?.uuid || "UUID"}|${fechaTimbradoStr}|ICA050422AA6|...||00001000000718099104||`}
+              </div>
+            </div>
+
+            <div>
+              <div className="font-bold text-[10px] text-[#183661] uppercase tracking-wide">
+                SELLO DIGITAL DEL CFDI
+              </div>
+              <div className="font-mono break-all leading-tight text-[8.5px] text-slate-700 mt-0.5">
+                {timbre?.selloCfd || "SELLO_DIGITAL_CFDI"}
+              </div>
+            </div>
+
+            <div>
+              <div className="font-bold text-[10px] text-[#183661] uppercase tracking-wide">
+                SELLO DIGITAL DEL SAT
+              </div>
+              <div className="font-mono break-all leading-tight text-[8.5px] text-slate-700 mt-0.5">
+                {timbre?.selloSat || "SELLO_DIGITAL_SAT"}
+              </div>
+            </div>
+
+            <div className="pt-1">
+              <span className="font-bold text-[#183661]">
+                No de Serie del Certificado del SAT:{" "}
+              </span>
+              <span className="font-mono text-slate-800">
+                {timbre?.noCertificadoSat || "00001000000718099104"}
+              </span>
+            </div>
           </div>
 
-          {/* Sello Digital CFD, Sello SAT, Cadena Original */}
-          <div className="sm:col-span-10 space-y-2">
-            <div>
-              <b className="text-slate-700">Sello Digital del CFDI (Simulado DEMO):</b>
-              <p className="font-mono break-all text-[9px] text-slate-600 mt-0.5">
-                {timbre?.selloCfd || "DEMO_SELLO_CFD_SHA256_MOCK_PAC_CLIENT"}
-              </p>
-            </div>
-
-            <div>
-              <b className="text-slate-700">Sello del SAT:</b>
-              <p className="font-mono break-all text-[9px] text-slate-600 mt-0.5">
-                {timbre?.selloSat || "DEMO_SELLO_SAT_SHA256_MOCK_PAC_CLIENT"}
-              </p>
-            </div>
-
-            <div>
-              <b className="text-slate-700">Cadena Original del Complemento de Certificación Digital del SAT:</b>
-              <p className="font-mono break-all text-[9px] text-slate-600 mt-0.5">
-                {timbre?.cadenaOriginal || "||1.1|UUID|2026-11-04|DEMO010101000||"}
-              </p>
-            </div>
+          {/* QR Code SAT (Col 3) */}
+          <div className="md:col-span-3 flex flex-col items-center justify-center pt-2">
+            {qrDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={qrDataUrl}
+                alt="Código QR Verificación SAT"
+                className="w-36 h-36 object-contain border border-slate-200 rounded-lg p-1 bg-white shadow-sm"
+              />
+            ) : (
+              <div className="w-36 h-36 border border-dashed rounded-lg flex items-center justify-center text-[10px] text-slate-400">
+                Generando QR SAT...
+              </div>
+            )}
+            <span className="text-[8px] text-slate-400 font-mono mt-1">
+              Verificación Oficial SAT
+            </span>
           </div>
         </div>
 
-        <div className="relative z-10 text-center mt-6 pt-4 border-t text-[11px] text-slate-400">
-          ESTE DOCUMENTO ES UNA REPRESENTACIÓN IMPRESA DE UN CFDI VERSIÓN 4.0 • SISTEMA DEMOSTRATIVO SIN VALIDEZ OFICIAL
+        {/* ------------------------------------------------------------ */}
+        {/* 7. FOOTER                                                    */}
+        {/* ------------------------------------------------------------ */}
+        <div className="mt-8 pt-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center text-[10px] text-slate-500">
+          <span>Este documento es una representación impresa de un CFDI - Versión: 4.0</span>
+          <span>Hoja 1 de 1</span>
         </div>
       </div>
 
-      {/* Cancellation Modal */}
+      {/* ------------------------------------------------------------ */}
+      {/* CANCELLATION MODAL                                           */}
+      {/* ------------------------------------------------------------ */}
       {isCancelModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden border">
             <div className="px-6 py-4 bg-red-600 text-white font-bold text-sm flex items-center justify-between">
-              <span>Cancelar Comprobante Fiscal (Simulado)</span>
+              <span>Cancelar Comprobante Fiscal CFDI 4.0</span>
               <button onClick={() => setIsCancelModalOpen(false)}>✕</button>
             </div>
 
             <form onSubmit={handleCancelCfdi} className="p-6 space-y-4 text-xs">
               <p className="text-slate-600">
-                Selecciona el motivo de cancelación conforme al estándar del SAT:
+                Selecciona el motivo de cancelación oficial conforme al estándar del SAT:
               </p>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Motivo de Cancelación</label>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Motivo de Cancelación (Catálogo SAT)
+                </label>
                 <select
                   value={motivoCancelacion}
                   onChange={(e) => setMotivoCancelacion(e.target.value)}
@@ -456,4 +706,3 @@ export default function FacturaPage() {
     </div>
   );
 }
-

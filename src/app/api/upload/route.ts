@@ -86,13 +86,13 @@ export async function POST(req: NextRequest) {
       rfcReceptor = "XAXX010101000";
       nombreReceptor = "PUBLICO EN GENERAL";
       regimenReceptor = "616";
-      cpReceptor = "06600";
+      cpReceptor = process.env.EMISOR_CP || "54090";
       usoCfdi = "S01";
     } else if (tipoFactura === "GLOBAL_EXTRANJERO") {
       rfcReceptor = "XEXX010101000";
       nombreReceptor = "PUBLICO GENERAL EXTRANJERO";
       regimenReceptor = "616";
-      cpReceptor = "06600";
+      cpReceptor = process.env.EMISOR_CP || "54090";
       usoCfdi = "S01";
     }
 
@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
       regimenReceptor,
       cpReceptor,
       usoCfdi,
+      serie: process.env.EMISOR_SERIE || "F",
       formaPago: parsed.headerMetadata.suggestedPaymentForm || "03",
       metodoPago: "PUE",
       subtotal: taxRes.subtotal,

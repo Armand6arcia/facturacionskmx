@@ -16,11 +16,11 @@ export function CompanyConfigModal({
   empresaData,
   onSaved,
 }: CompanyConfigModalProps) {
-  const [razonSocial, setRazonSocial] = useState("STYLE KOREAN MEXICO S.A. DE C.V.");
-  const [rfc, setRfc] = useState("SKM220101XYZ");
+  const [razonSocial, setRazonSocial] = useState("STYLEKOREAN MX");
+  const [rfc, setRfc] = useState("SMX250408I48");
   const [regimenFiscal, setRegimenFiscal] = useState("601");
-  const [codigoPostal, setCodigoPostal] = useState("06600");
-  const [serie, setSerie] = useState("A");
+  const [codigoPostal, setCodigoPostal] = useState("54090");
+  const [serie, setSerie] = useState("F");
   const [pacProvider, setPacProvider] = useState("mock");
   const [facturaApiKey, setFacturaApiKey] = useState("");
   const [facturaSecretKey, setFacturaSecretKey] = useState("");
@@ -115,7 +115,7 @@ export function CompanyConfigModal({
               required
               value={razonSocial}
               onChange={(e) => setRazonSocial(e.target.value.toUpperCase())}
-              placeholder="STYLE KOREAN MEXICO S.A. DE C.V."
+              placeholder="STYLEKOREAN MX"
               className="w-full px-3.5 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-white"
             />
           </div>
@@ -131,7 +131,7 @@ export function CompanyConfigModal({
                 maxLength={13}
                 value={rfc}
                 onChange={(e) => setRfc(e.target.value.toUpperCase())}
-                placeholder="SKM220101XYZ"
+                placeholder="SMX250408I48"
                 className="w-full px-3.5 py-2.5 border rounded-xl text-sm font-mono uppercase focus:ring-2 focus:ring-blue-500 bg-white"
               />
             </div>
@@ -146,7 +146,7 @@ export function CompanyConfigModal({
                 maxLength={5}
                 value={codigoPostal}
                 onChange={(e) => setCodigoPostal(e.target.value)}
-                placeholder="06600"
+                placeholder="54090"
                 className="w-full px-3.5 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-white"
               />
             </div>

@@ -3,8 +3,8 @@ import "./globals.css";
 import { Navigation } from "@/components/navigation";
 
 export const metadata: Metadata = {
-  title: "Factura SKMX - Sistema Demo CFDI 4.0",
-  description: "MVP demostrativo para lectura de comprobantes internos y timbrado CFDI 4.0 en México",
+  title: "StyleKorean MX - Facturación CFDI 4.0",
+  description: "Sistema oficial de facturación electrónica y emisión CFDI 4.0 para StyleKorean MX",
 };
 
 export default function RootLayout({
@@ -20,7 +20,7 @@ export default function RootLayout({
           {children}
         </main>
         <footer className="border-t py-4 text-center text-xs text-slate-500 bg-white no-print">
-          Sistema Demostrativo CFDI 4.0 • MockPacClient activo (Variable PAC_PROVIDER=mock) • Moneda MXN
+          StyleKorean MX • Emisión de Comprobantes Fiscales Digitales por Internet (CFDI 4.0)
         </footer>
       </body>
     </html>
