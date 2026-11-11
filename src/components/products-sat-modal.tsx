@@ -200,3 +200,4 @@ export function ProductsSatModal({ isOpen, onClose }: ProductsSatModalProps) {
     </div>
   );
 }
+
