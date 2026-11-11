@@ -23,6 +23,10 @@ import {
   Settings,
   Plus,
   FileUp,
+  Truck,
+  FileSpreadsheet,
+  Layers,
+  X,
 } from "lucide-react";
 
 import { CompanyConfigModal } from "@/components/company-config-modal";
@@ -45,6 +49,9 @@ export default function DashboardPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [esFacturaConEnvio, setEsFacturaConEnvio] = useState(false);
+  const [archivoProductos, setArchivoProductos] = useState<File | null>(null);
+  const [archivoEnvio, setArchivoEnvio] = useState<File | null>(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -64,12 +71,15 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, []);
 
-  const processFile = async (uploadedFile: File) => {
+  const processFiles = async (fileProd: File, fileEnvio?: File | null) => {
     setUploading(true);
     setUploadError(null);
 
     const formData = new FormData();
-    formData.append("file", uploadedFile);
+    formData.append("file", fileProd);
+    if (fileEnvio) {
+      formData.append("envioFile", fileEnvio);
+    }
     formData.append("tipoFactura", "CLIENTE");
 
     try {
@@ -85,7 +95,7 @@ export default function DashboardPage() {
 
       router.push(`/revisar/${resJson.documentoId}`);
     } catch (err: any) {
-      setUploadError(err.message || "Error al subir el archivo.");
+      setUploadError(err.message || "Error al subir los archivos.");
       setUploading(false);
     }
   };
@@ -93,8 +103,20 @@ export default function DashboardPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFile(e.dataTransfer.files[0]);
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    if (esFacturaConEnvio) {
+      if (files.length >= 2) {
+        setArchivoProductos(files[0]);
+        setArchivoEnvio(files[1]);
+      } else if (!archivoProductos) {
+        setArchivoProductos(files[0]);
+      } else {
+        setArchivoEnvio(files[0]);
+      }
+    } else {
+      processFiles(files[0]);
     }
   };
 
@@ -266,22 +288,45 @@ export default function DashboardPage() {
       <div id="nueva-factura" className="grid grid-cols-1 lg:grid-cols-3 gap-6 scroll-mt-20">
         {/* Upload Zone (2 cols) */}
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-bold text-slate-900">
                 Emisión Rápida: Cargar Comprobante u Orden (.xls)
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Sube el archivo de orden interna (formato tabla HTML o Excel binario) para auditar partidas y timbrar.
+                Carga tus archivos para auditar partidas, asignar claves SAT automáticas y timbrar.
               </p>
             </div>
-            <button
-              onClick={() => document.getElementById("fileInput")?.click()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-xs transition-colors"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Nueva Factura
-            </button>
+
+            {/* Segmented control: Factura Estándar vs Factura con Envío */}
+            <div className="flex items-center p-1 bg-slate-100 rounded-xl text-xs font-semibold self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setEsFacturaConEnvio(false);
+                  setArchivoEnvio(null);
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  !esFacturaConEnvio
+                    ? "bg-white text-blue-700 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                1 Archivo
+              </button>
+              <button
+                type="button"
+                onClick={() => setEsFacturaConEnvio(true)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all ${
+                  esFacturaConEnvio
+                    ? "bg-white text-blue-700 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Truck className="h-3.5 w-3.5" />
+                Con Envío (2 archivos)
+              </button>
+            </div>
           </div>
 
           {uploadError && (
@@ -291,64 +336,221 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Minimal Drag and Drop Box */}
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
-              isDragging
-                ? "border-blue-500 bg-blue-50/60 scale-[0.99]"
-                : "border-slate-300 hover:border-blue-400 bg-slate-50/40"
-            }`}
-          >
-            <input
-              type="file"
-              id="fileInput"
-              accept=".xls,.xlsx"
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  processFile(e.target.files[0]);
-                }
-              }}
-            />
-
-            {uploading ? (
-              <div className="py-4 space-y-2">
-                <div className="h-10 w-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="font-semibold text-slate-800 text-sm">
-                  Leyendo y analizando archivo...
-                </p>
-                <p className="text-xs text-slate-400">
-                  Detectando formato, partidas y claves SAT
+          {/* MODO A: Factura Combinada (2 Archivos) */}
+          {esFacturaConEnvio ? (
+            <div className="space-y-4">
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-900 space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <Layers className="h-4 w-4 text-blue-600" />
+                  Factura combinada de Productos + Envío
+                </div>
+                <p className="text-[11px] text-blue-800">
+                  Sube el archivo de productos y el archivo de envío. Los conceptos de ambos se integrarán en una única factura CFDI 4.0 con clave SAT <b className="font-mono">53131613</b> para productos y <b className="font-mono">78101800</b> para el envío.
                 </p>
               </div>
-            ) : (
-              <label
-                htmlFor="fileInput"
-                className="cursor-pointer flex flex-col items-center justify-center space-y-3"
-              >
-                <div className="p-3.5 rounded-2xl bg-blue-50 text-blue-600">
-                  <UploadCloud className="h-7 w-7" />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Archivo 1: Productos */}
+                <div className={`p-4 rounded-xl border-2 border-dashed transition-all ${
+                  archivoProductos ? "border-emerald-400 bg-emerald-50/40" : "border-slate-300 bg-slate-50/50"
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <FileSpreadsheet className="h-4 w-4 text-indigo-600" />
+                      1. Archivo de Productos
+                    </span>
+                    {archivoProductos && (
+                      <button
+                        type="button"
+                        onClick={() => setArchivoProductos(null)}
+                        className="text-slate-400 hover:text-red-600 transition"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {archivoProductos ? (
+                    <div className="space-y-1">
+                      <div className="text-xs font-mono font-bold text-emerald-900 truncate">
+                        {archivoProductos.name}
+                      </div>
+                      <div className="text-[11px] text-emerald-700">
+                        {(archivoProductos.size / 1024).toFixed(1)} KB • Listo
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="file"
+                        id="prodFileInput"
+                        accept=".xls,.xlsx"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            setArchivoProductos(e.target.files[0]);
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor="prodFileInput"
+                        className="block cursor-pointer py-3 text-center text-xs font-semibold text-blue-600 hover:text-blue-800"
+                      >
+                        Seleccionar archivo de productos (.xls)
+                      </label>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">
-                    Haz clic para seleccionar o arrastra tu archivo .xls aquí
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Compatible con exportaciones de Style Korean (HTML_XLS y BINARY_XLS)
-                  </p>
+
+                {/* Archivo 2: Envío */}
+                <div className={`p-4 rounded-xl border-2 border-dashed transition-all ${
+                  archivoEnvio ? "border-emerald-400 bg-emerald-50/40" : "border-slate-300 bg-slate-50/50"
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Truck className="h-4 w-4 text-blue-600" />
+                      2. Archivo de Envío (Delivery)
+                    </span>
+                    {archivoEnvio && (
+                      <button
+                        type="button"
+                        onClick={() => setArchivoEnvio(null)}
+                        className="text-slate-400 hover:text-red-600 transition"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {archivoEnvio ? (
+                    <div className="space-y-1">
+                      <div className="text-xs font-mono font-bold text-emerald-900 truncate">
+                        {archivoEnvio.name}
+                      </div>
+                      <div className="text-[11px] text-emerald-700">
+                        {(archivoEnvio.size / 1024).toFixed(1)} KB • Listo
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="file"
+                        id="envioFileInput"
+                        accept=".xls,.xlsx"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            setArchivoEnvio(e.target.files[0]);
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor="envioFileInput"
+                        className="block cursor-pointer py-3 text-center text-xs font-semibold text-blue-600 hover:text-blue-800"
+                      >
+                        Seleccionar archivo de envío (.xls)
+                      </label>
+                    </div>
+                  )}
                 </div>
-                <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors">
-                  Examinar archivos
+              </div>
+
+              {/* Botón de acción combinada */}
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-xs text-slate-500">
+                  {archivoProductos && archivoEnvio
+                    ? "Ambos archivos listos para combinar."
+                    : "Selecciona al menos el archivo de productos y el de envío."}
                 </span>
-              </label>
-            )}
-          </div>
+
+                <button
+                  type="button"
+                  disabled={uploading || !archivoProductos}
+                  onClick={() => {
+                    if (archivoProductos) {
+                      processFiles(archivoProductos, archivoEnvio);
+                    }
+                  }}
+                  className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition shadow-sm ${
+                    archivoProductos && !uploading
+                      ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                      : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                  }`}
+                >
+                  {uploading ? (
+                    <>
+                      <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Procesando archivos combinados...
+                    </>
+                  ) : (
+                    <>
+                      <Layers className="h-4 w-4" />
+                      Generar Factura Combinada
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* MODO B: Factura Estándar (1 Archivo) */
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+                isDragging
+                  ? "border-blue-500 bg-blue-50/60 scale-[0.99]"
+                  : "border-slate-300 hover:border-blue-400 bg-slate-50/40"
+              }`}
+            >
+              <input
+                type="file"
+                id="fileInput"
+                accept=".xls,.xlsx"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    processFiles(e.target.files[0]);
+                  }
+                }}
+              />
+
+              {uploading ? (
+                <div className="py-4 space-y-2">
+                  <div className="h-10 w-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="font-semibold text-slate-800 text-sm">
+                    Leyendo y analizando archivo...
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Detectando formato, partidas y claves SAT
+                  </p>
+                </div>
+              ) : (
+                <label
+                  htmlFor="fileInput"
+                  className="cursor-pointer flex flex-col items-center justify-center space-y-3"
+                >
+                  <div className="p-3.5 rounded-2xl bg-blue-50 text-blue-600">
+                    <UploadCloud className="h-7 w-7" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">
+                      Haz clic para seleccionar o arrastra tu archivo .xls aquí
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Compatible con exportaciones de Style Korean (HTML_XLS y BINARY_XLS)
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors">
+                    Examinar archivos
+                  </span>
+                </label>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Executive Summary Metrics Card (1 col) */}

@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Catálogo demo de sugerencias SAT para cosméticos y cuidado de la piel
+// Catálogo oficial de sugerencias SAT para StyleKorean México
 const CATALOGO_DEMO_SUGERENCIAS = [
-  { clave: "53131600", descripcion: "Cosméticos y productos de cuidado personal" },
-  { clave: "53131602", descripcion: "Lociones o humectantes para el cuidado de la piel" },
-  { clave: "53131613", descripcion: "Limpiadores faciales y desmaquillantes" },
-  { clave: "53131628", descripcion: "Mascarillas faciales y tratamientos" },
-  { clave: "53131631", descripcion: "Protectores solares o bloqueadores" },
-  { clave: "53131640", descripcion: "Sueros y ampolletas dermatológicas" },
+  { clave: "53131613", descripcion: "Clave SAT Oficial StyleKorean (Cosméticos, cuidado de la piel y tocador)" },
+  { clave: "78101800", descripcion: "Servicio de transporte y envío local / mensajería (Deliveryfee)" },
 ];
 
 export async function GET(req: NextRequest) {

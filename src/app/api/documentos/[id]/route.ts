@@ -222,3 +222,46 @@ export async function PATCH(
   }
 }
 
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const docId = params.id;
+    const doc = await prisma.documento.findUnique({
+      where: { id: docId },
+      include: { timbre: true },
+    });
+
+    if (!doc) {
+      return NextResponse.json({ error: "Documento no encontrado." }, { status: 404 });
+    }
+
+    if (doc.estado === "TIMBRADO" || doc.timbre) {
+      return NextResponse.json(
+        {
+          error:
+            "No es posible eliminar un comprobante timbrado ante el SAT por integridad fiscal. Si requieres anularlo, utiliza la opción Cancelar CFDI.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Eliminar partidas y bitácora asociadas
+    await prisma.documentoItem.deleteMany({ where: { documentoId: docId } });
+    await prisma.bitacoraEvento.deleteMany({ where: { documentoId: docId } });
+    await prisma.documento.delete({ where: { id: docId } });
+
+    return NextResponse.json({
+      success: true,
+      mensaje: `Borrador ${doc.docNumber} eliminado exitosamente del sistema.`,
+    });
+  } catch (error: any) {
+    console.error("Error al eliminar borrador:", error);
+    return NextResponse.json(
+      { error: error?.message || "Error al eliminar el borrador." },
+      { status: 500 }
+    );
+  }
+}
+

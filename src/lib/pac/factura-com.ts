@@ -12,6 +12,10 @@ import {
   PacTimbradoResult,
   PacCancelacionResult,
 } from "./pac-interface";
+import {
+  getSatMappingForConcepto,
+  DESCRIPCION_ENVIO_DEFAULT,
+} from "../sat/catalog-defaults";
 
 interface FacturaComResponse {
   ok: boolean;
@@ -330,14 +334,20 @@ export class FacturaComPacClient implements PacClient {
         const valorUnitario = Number(c.valorUnitario.toFixed(2));
         const base = Number((c.cantidad * valorUnitario).toFixed(2));
         const iva = Number((base * 0.16).toFixed(2));
+        const sat = getSatMappingForConcepto(c.noIdentificacion, c.descripcion);
+
+        const claveProdServ = c.claveProdServ || sat.claveProdServ;
+        const claveUnidad = c.claveUnidad || sat.claveUnidad;
+        const unidad = c.unidad || sat.unidad;
+        const descripcion = sat.isEnvio ? DESCRIPCION_ENVIO_DEFAULT : c.descripcion;
 
         const concepto: any = {
-          ClaveProdServ: c.claveProdServ || "53131600",
-          NoIdentificacion: c.noIdentificacion || "SKU",
+          ClaveProdServ: claveProdServ,
+          NoIdentificacion: c.noIdentificacion || (sat.isEnvio ? "DELIVERYFEE" : "SKU"),
           Cantidad: c.cantidad,
-          ClaveUnidad: c.claveUnidad || "H87",
-          Unidad: c.unidad || "Pieza",
-          Descripcion: c.descripcion,
+          ClaveUnidad: claveUnidad,
+          Unidad: unidad,
+          Descripcion: descripcion,
           ValorUnitario: valorUnitario,
           Importe: base,
           ObjetoImp: c.objetoImp || "02",

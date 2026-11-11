@@ -15,6 +15,7 @@ import {
   ArrowRight,
   ShieldCheck,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 
 export default function HistorialPage() {
@@ -24,6 +25,33 @@ export default function HistorialPage() {
   const [estadoFilter, setEstadoFilter] = useState("TODOS");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
+
+  const handleEliminarBorrador = async (id: string, docNumber: string) => {
+    if (
+      !window.confirm(
+        `¿Estás seguro de eliminar el borrador "${docNumber}"? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+    setEliminandoId(id);
+    try {
+      const res = await fetch(`/api/documentos/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "No se pudo eliminar el borrador.");
+      } else {
+        fetchData();
+      }
+    } catch (e: any) {
+      alert(e.message || "Error al eliminar el borrador.");
+    } finally {
+      setEliminandoId(null);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -230,12 +258,23 @@ export default function HistorialPage() {
                                 Ver CFDI
                               </Link>
                             ) : (
-                              <Link
-                                href={`/revisar/${d.id}`}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded-md font-semibold transition"
-                              >
-                                Revisar
-                              </Link>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Link
+                                  href={`/revisar/${d.id}`}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded-md font-semibold transition"
+                                >
+                                  Revisar
+                                </Link>
+                                <button
+                                  type="button"
+                                  disabled={eliminandoId === d.id}
+                                  onClick={() => handleEliminarBorrador(d.id, d.docNumber)}
+                                  className="inline-flex items-center p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition"
+                                  title="Eliminar borrador"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>

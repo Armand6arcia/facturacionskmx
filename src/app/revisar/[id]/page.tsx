@@ -25,9 +25,11 @@ import {
   Search,
   Plus,
   FileUp,
+  Trash2,
 } from "lucide-react";
 import { SkuResolverModal } from "@/components/sku-resolver-modal";
 import { NewClientModal } from "@/components/new-client-modal";
+import { isDeliveryFeeItem } from "@/lib/sat/catalog-defaults";
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -50,6 +52,62 @@ export default function ReviewPage() {
   // Sku resolver modal state
   const [isResolverOpen, setIsResolverOpen] = useState(false);
   const [unmappedSkus, setUnmappedSkus] = useState<any[]>([]);
+
+  // Estado para subida de envío adicional y eliminación de borrador
+  const [agregandoEnvio, setAgregandoEnvio] = useState(false);
+  const [eliminandoBorrador, setEliminandoBorrador] = useState(false);
+
+  const handleEliminarBorrador = async () => {
+    if (
+      !window.confirm(
+        `¿Estás seguro de eliminar este borrador (${documento?.docNumber})? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+
+    setEliminandoBorrador(true);
+    try {
+      const res = await fetch(`/api/documentos/${docId}`, { method: "DELETE" });
+      const d = await res.json();
+      if (!res.ok) {
+        alert(d.error || "No se pudo eliminar el borrador.");
+      } else {
+        router.push("/historial");
+      }
+    } catch (e: any) {
+      alert(e.message || "Error al eliminar el borrador.");
+    } finally {
+      setEliminandoBorrador(false);
+    }
+  };
+
+  const handleSubirEnvioAdicional = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAgregandoEnvio(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch(`/api/documentos/${docId}/agregar-envio`, {
+        method: "POST",
+        body: formData,
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        alert(d.error || "Error al agregar archivo de envío.");
+      } else {
+        await fetchDoc();
+      }
+    } catch (err: any) {
+      alert(err.message || "Error al procesar el archivo de envío.");
+    } finally {
+      setAgregandoEnvio(false);
+      e.target.value = "";
+    }
+  };
 
   // Paso 2: Invoice & Client Form State
   const [tipoFactura, setTipoFactura] = useState<
@@ -123,9 +181,14 @@ export default function ReviewPage() {
         }
       }
 
-      // Extract unmapped SKUs for the resolver modal
+      // Extract unmapped SKUs for the resolver modal (todos los productos toman 53131613 por default)
       const unmapped = data.documento.items
-        .filter((it: any) => !it.excluido && (!it.claveProdServ || it.claveProdServ.trim() === ""))
+        .filter(
+          (it: any) =>
+            !it.excluido &&
+            (!it.claveProdServ || it.claveProdServ.trim() === "") &&
+            !isDeliveryFeeItem(it.sku, it.descripcion)
+        )
         .map((it: any) => ({
           sku: it.sku,
           descripcion: it.descripcion,
@@ -393,6 +456,19 @@ export default function ReviewPage() {
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">
+          {documento.estado !== "TIMBRADO" && (
+            <button
+              type="button"
+              disabled={eliminandoBorrador}
+              onClick={handleEliminarBorrador}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-700 rounded-lg text-xs font-semibold border transition"
+              title="Eliminar este borrador no concretado"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Descartar borrador</span>
+            </button>
+          )}
+
           {unmappedSkus.length > 0 && (
             <button
               onClick={() => setIsResolverOpen(true)}
@@ -471,17 +547,49 @@ export default function ReviewPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Columna Izquierda: Tabla editable de partidas */}
           <div className="lg:col-span-8 bg-white rounded-2xl border shadow-sm overflow-hidden space-y-4">
-            <div className="px-6 py-4 border-b bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="px-6 py-4 border-b bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
                   Partidas del Comprobante ({documento.items.length} líneas)
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Cantidad a facturar = Invc Qty • Precio = WholeSale Price • Rate en gris es solo informativo
+                  Cantidad a facturar = Invc Qty • Precio = WholeSale Price • Clave SAT por default: 53131613
                 </p>
               </div>
-              <div className="text-xs text-slate-600 font-medium">
-                Subtotal: <b className="text-slate-900">${documento.subtotal.toFixed(2)}</b>
+              <div className="flex flex-wrap items-center gap-2">
+                {documento.estado !== "TIMBRADO" && (
+                  <>
+                    <input
+                      type="file"
+                      id="envioAdicionalInput"
+                      accept=".xls,.xlsx"
+                      className="hidden"
+                      onChange={handleSubirEnvioAdicional}
+                    />
+                    <button
+                      type="button"
+                      disabled={agregandoEnvio}
+                      onClick={() => document.getElementById("envioAdicionalInput")?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold border border-blue-200 transition"
+                      title="Agregar un archivo de envío (.xls) a esta factura"
+                    >
+                      {agregandoEnvio ? (
+                        <>
+                          <div className="h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                          Agregando...
+                        </>
+                      ) : (
+                        <>
+                          <Truck className="h-3.5 w-3.5" />
+                          + Agregar Envío (.xls)
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
+                <div className="text-xs text-slate-600 font-medium ml-1">
+                  Subtotal: <b className="text-slate-900">${documento.subtotal.toFixed(2)}</b>
+                </div>
               </div>
             </div>
 
@@ -516,20 +624,16 @@ export default function ReviewPage() {
                         {/* SKU & SAT status */}
                         <td className="py-2.5 px-3 align-top">
                           <div className="font-mono font-bold text-slate-800">{it.sku}</div>
-                          {hasSatCode ? (
-                            <div className="text-[11px] font-mono text-emerald-700 flex items-center gap-1 mt-0.5">
-                              <CheckCircle2 className="h-3 w-3 shrink-0" />
-                              {it.claveProdServ}
+                          {isDeliveryFeeItem(it.sku, it.descripcion) ? (
+                            <div className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 mt-1">
+                              <Truck className="h-3 w-3 shrink-0" />
+                              78101800 (E48 Envío)
                             </div>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => setIsResolverOpen(true)}
-                              className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-800 mt-0.5 hover:bg-red-200"
-                            >
-                              <AlertCircle className="h-3 w-3" />
-                              Sin clave SAT
-                            </button>
+                            <div className="text-[11px] font-mono text-emerald-700 flex items-center gap-1 mt-0.5">
+                              <CheckCircle2 className="h-3 w-3 shrink-0" />
+                              {it.claveProdServ || "53131613"} (H87)
+                            </div>
                           )}
                           {it.barcode && (
                             <div className="text-[10px] text-slate-400 font-mono mt-0.5">

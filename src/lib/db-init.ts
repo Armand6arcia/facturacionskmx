@@ -164,7 +164,7 @@ export async function ensureTablesExist() {
               sku: it.sku,
               barcode: it.barcode || null,
               descripcion: it.descripcion,
-              claveProdServ: it.claveProdServ || "53131600",
+              claveProdServ: "53131613",
               claveUnidad: "H87",
               objetoImp: "02",
               tasaIVA: 0.16,
@@ -175,6 +175,30 @@ export async function ensureTablesExist() {
       } catch (seedErr) {
         console.warn("Aviso al cargar catálogo inicial SAT:", seedErr);
       }
+    }
+
+    // Actualizar claves SAT por defecto (53131613 para productos, 78101800 para envíos)
+    try {
+      await prisma.$executeRawUnsafe(`
+        UPDATE ProductoSat 
+        SET claveProdServ = '53131613' 
+        WHERE claveProdServ IS NULL OR claveProdServ = '' OR claveProdServ = '53131600';
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        UPDATE DocumentoItem 
+        SET claveProdServ = '78101800', claveUnidad = 'E48', descripcion = 'Servicio de envio' 
+        WHERE LOWER(sku) LIKE '%delivery%' OR LOWER(descripcion) LIKE '%delivery%' OR LOWER(sku) LIKE '%envio%' OR LOWER(descripcion) LIKE '%envio%';
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        UPDATE DocumentoItem 
+        SET claveProdServ = '53131613', claveUnidad = 'H87' 
+        WHERE (claveProdServ IS NULL OR claveProdServ = '' OR claveProdServ = '53131600') 
+          AND LOWER(sku) NOT LIKE '%delivery%' AND LOWER(descripcion) NOT LIKE '%delivery%' AND LOWER(sku) NOT LIKE '%envio%' AND LOWER(descripcion) NOT LIKE '%envio%';
+      `);
+    } catch (updErr) {
+      console.warn("Aviso al actualizar claves SAT por defecto en la BD:", updErr);
     }
 
     tablesInitialized = true;
