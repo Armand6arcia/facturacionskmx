@@ -160,6 +160,17 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
 
     // Soporta pdf-parse v2 (clase PDFParse) y v1 (función por defecto)
     if (pdfModule.PDFParse) {
+      // Configurar el worker embebido en base64 (pdf-parse/worker) para evitar el error
+      // "Cannot find module '.../pdf.worker.mjs'" en builds standalone de Next.js / Hostinger
+      try {
+        const workerModule = require("pdf-parse/worker");
+        if (workerModule && typeof workerModule.getData === "function") {
+          pdfModule.PDFParse.setWorker(workerModule.getData());
+        }
+      } catch (workerErr) {
+        console.warn("[CSF Parser] No se pudo inicializar pdf-parse/worker inline:", workerErr);
+      }
+
       const parser = new pdfModule.PDFParse({ data: buffer });
       await parser.load();
       const result = await parser.getText();
