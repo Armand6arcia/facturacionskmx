@@ -386,6 +386,12 @@ export class FacturaComPacClient implements PacClient {
 
       if (serieId) body.Serie = Number.isNaN(Number(serieId)) ? serieId : Number(serieId);
 
+      // Número de orden / pedido para control interno y aparición en columna Orden de Factura.com y PDF
+      const orderNum = payload.numOrder || payload.docNumber;
+      if (orderNum) {
+        body.NumOrder = String(orderNum).trim().slice(0, 30);
+      }
+
       // Información global si aplica (ventas al público en general)
       if (payload.informacionGlobal) {
         body.InformacionGlobal = {

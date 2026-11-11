@@ -137,6 +137,30 @@ export async function PATCH(
     // 2. Update general doc properties if provided
     const updateData: any = {};
     if (body.tipoFactura) updateData.tipoFactura = body.tipoFactura;
+
+    // Actualizar número de orden / pedido manualmente (IN0049XXXX)
+    if (body.docNumber !== undefined) {
+      const trimmed = String(body.docNumber).trim();
+      if (trimmed) {
+        const existingWithSameNum = await prisma.documento.findFirst({
+          where: { docNumber: trimmed, id: { not: docId } },
+        });
+        if (existingWithSameNum) {
+          if (existingWithSameNum.estado === "TIMBRADO") {
+            return NextResponse.json(
+              { error: `El número de pedido "${trimmed}" ya fue timbrado previamente en otra factura.` },
+              { status: 400 }
+            );
+          } else {
+            await prisma.documento.update({
+              where: { id: existingWithSameNum.id },
+              data: { docNumber: `${existingWithSameNum.docNumber}-OLD-${Date.now()}` },
+            });
+          }
+        }
+        updateData.docNumber = trimmed;
+      }
+    }
     
     if (body.clienteId) {
       updateData.clienteId = body.clienteId;

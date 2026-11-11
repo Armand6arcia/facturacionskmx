@@ -66,6 +66,7 @@ export default function ReviewPage() {
   const [usoCfdi, setUsoCfdi] = useState("G01");
   const [fechaEmision, setFechaEmision] = useState(() => new Date().toISOString().slice(0, 10));
   const [serie, setSerie] = useState("F");
+  const [numOrder, setNumOrder] = useState("");
 
   // Global invoice fields
   const [periodicidad, setPeriodicidad] = useState("04");
@@ -102,6 +103,9 @@ export default function ReviewPage() {
       setAlerts(data.alerts || []);
 
       // If document already had client or invoice settings:
+      if (data.documento.docNumber) {
+        setNumOrder(data.documento.docNumber);
+      }
       if (data.documento.tipoFactura) {
         setTipoFactura(data.documento.tipoFactura);
       }
@@ -224,6 +228,7 @@ export default function ReviewPage() {
       usoCfdi,
       serie,
       fechaEmision,
+      docNumber: numOrder.trim() || undefined,
       clienteId: tipoFactura === "CLIENTE" && selectedCliente ? selectedCliente.id : null,
     };
 
@@ -783,7 +788,7 @@ export default function ReviewPage() {
                   Paso 2: Datos del Receptor y Facturación
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Selecciona el cliente, el tipo de comprobante y confirma las condiciones de pago.
+                  Selecciona el cliente, el número de pedido y confirma las condiciones de pago.
                 </p>
               </div>
               <button
@@ -794,6 +799,31 @@ export default function ReviewPage() {
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Modificar partidas (Paso 1)
               </button>
+            </div>
+
+            {/* Campo Orden / Pedido (IN0049XXXX) editable */}
+            <div className="p-4 bg-gradient-to-r from-blue-50/90 via-white to-blue-50/40 border-2 border-blue-200 rounded-xl space-y-2 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText className="h-4 w-4 text-blue-600" />
+                  Número de Orden / Pedido (Factura.com & PDF)
+                </label>
+                <span className="text-[11px] font-semibold text-blue-800 bg-blue-100 px-2.5 py-0.5 rounded-full self-start sm:self-auto">
+                  Aparece en columna Orden de Factura.com y en el PDF
+                </span>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={numOrder}
+                  onChange={(e) => setNumOrder(e.target.value.toUpperCase())}
+                  placeholder="ej. IN00493041"
+                  className="w-full px-3.5 py-2.5 border-2 border-blue-300 rounded-lg bg-white font-mono font-bold text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-600 uppercase transition placeholder:font-normal placeholder:text-slate-400 placeholder:normal-case shadow-xs"
+                />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Si el archivo original no contenía el número de orden o deseas corregirlo, ingrésalo aquí (ej. <b className="font-mono text-slate-700">IN00493041</b>). Se sincronizará en la columna <b className="font-mono text-slate-700">Orden</b> de Factura.com y en el renglón <b className="text-slate-700">Orden/Pedido:</b> del PDF oficial.
+              </p>
             </div>
 
             {/* Selector de Tipo de Factura */}
@@ -1230,6 +1260,13 @@ export default function ReviewPage() {
                       RFC: {selectedCliente.rfc} • C.P. {selectedCliente.codigoPostal} • Uso: <b>{usoCfdi}</b>
                     </div>
                   )}
+                </div>
+
+                <div className="pt-2 border-t flex justify-between items-center text-slate-600">
+                  <span className="text-[11px] uppercase text-slate-400">Orden / Pedido:</span>
+                  <span className="font-mono font-bold text-xs text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    {numOrder || "Sin asignar"}
+                  </span>
                 </div>
 
                 <div className="pt-2 border-t flex justify-between text-slate-600">

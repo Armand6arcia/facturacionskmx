@@ -135,6 +135,8 @@ export async function POST(req: NextRequest) {
     const payload: CfdiPayload = {
       serie: doc.serie,
       folio: doc.folio,
+      docNumber: doc.docNumber,
+      numOrder: doc.docNumber,
       fecha: doc.fechaEmision.toISOString().replace(/\.\d{3}Z$/, ""),
       formaPago: doc.formaPago,
       metodoPago: doc.metodoPago,

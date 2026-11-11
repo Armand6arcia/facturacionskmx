@@ -72,6 +72,8 @@ export interface CartaPorteComplemento {
 export interface CfdiPayload {
   serie: string;
   folio: number | string;
+  docNumber?: string;
+  numOrder?: string;
   fecha: string; // YYYY-MM-DDTHH:mm:ss
   formaPago: string;
   metodoPago: string;
