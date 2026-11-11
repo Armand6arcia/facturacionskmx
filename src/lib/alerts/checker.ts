@@ -72,7 +72,7 @@ export function checkDocumentAlerts(input: CheckAlertsInput): DocumentAlert[] {
       titulo: `${uniqueSkus.length} producto(s) nuevo(s) sin clave SAT`,
       mensaje: `Los siguientes SKUs no tienen asignada una Clave de Producto o Servicio del SAT: ${uniqueSkus.join(", ")}.`,
       bloqueaTimbrado: true,
-      accionSugerida: "Usa el botón 'Resolver productos' para asignar y guardar la clave SAT demo de forma permanente.",
+      accionSugerida: "Usa el botón 'Resolver productos' para asignar y guardar la clave SAT de forma permanente.",
     });
   }
 

@@ -54,7 +54,7 @@ export async function GET() {
       domicilioFiscal:
         "AV. JESUS REYES HEROLES 293 Col. UNID.MARAVILLAS CEYLAN, C.P. 54090, TLALNEPANTLA DE BAZ, TLALNEPANTLA DE BAZ, México",
       seriePorDefecto: "F",
-      pacProvider: process.env.PAC_PROVIDER || "mock",
+      pacProvider: process.env.PAC_PROVIDER || "facturacom",
       versionCfdi: "4.0",
     };
 

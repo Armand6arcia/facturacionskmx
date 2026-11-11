@@ -1205,33 +1205,11 @@ export default function ReviewPage() {
               <div>
                 <h3 className="font-bold text-sm flex items-center gap-2 text-white">
                   <Send className="h-4 w-4 text-blue-400" />
-                  Timbrado Fiscal Digital
+                  Timbrado Fiscal Digital CFDI 4.0
                 </h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  Generación de comprobante CFDI 4.0 con MockPacClient y validación tributaria.
+                  Emisión oficial conectada con Factura.com y validación fiscal del SAT.
                 </p>
-              </div>
-
-              {/* Interruptor de Falla Simulada */}
-              <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 flex items-center justify-between">
-                <div>
-                  <label
-                    htmlFor="switchFallaP2"
-                    className="font-bold text-xs text-slate-200 block cursor-pointer"
-                  >
-                    Simular falla del PAC (503)
-                  </label>
-                  <span className="text-[11px] text-slate-400">
-                    Demuestra el reintento sin duplicar timbres
-                  </span>
-                </div>
-                <input
-                  id="switchFallaP2"
-                  type="checkbox"
-                  checked={simularFallaPAC}
-                  onChange={(e) => setSimularFallaPAC(e.target.checked)}
-                  className="w-5 h-5 accent-blue-600 cursor-pointer"
-                />
               </div>
 
               {pacError && (

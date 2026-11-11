@@ -110,10 +110,10 @@ export default function DashboardPage() {
   };
 
   const empresa = data?.empresa || {
-    razonSocial: "STYLE KOREAN MEXICO S.A. DE C.V.",
-    rfc: "SKM220101XYZ",
+    razonSocial: "STYLEKOREAN MX",
+    rfc: "SMX250408I48",
     regimenFiscal: "601",
-    pacProvider: "mock",
+    pacProvider: "facturacom",
   };
 
   return (

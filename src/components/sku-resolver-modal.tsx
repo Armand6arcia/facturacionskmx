@@ -17,9 +17,9 @@ interface SkuResolverModalProps {
   onResolved: () => void;
 }
 
-const DEMO_CATALOG_SUGGESTIONS = [
+const SAT_CATALOG_SUGGESTIONS = [
+  { clave: "53131613", descripcion: "Productos para el cuidado de la piel y cosméticos" },
   { clave: "53131602", descripcion: "Lociones o humectantes para el cuidado de la piel" },
-  { clave: "53131613", descripcion: "Limpiadores faciales y desmaquillantes" },
   { clave: "53131628", descripcion: "Mascarillas faciales y tratamientos" },
   { clave: "53131631", descripcion: "Protectores solares o bloqueadores" },
   { clave: "53131600", descripcion: "Cosméticos y productos de cuidado personal" },
@@ -32,8 +32,8 @@ export function SkuResolverModal({
   onResolved,
 }: SkuResolverModalProps) {
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [claveInput, setClaveInput] = useState("");
-  const [descInput, setDescInput] = useState("");
+  const [claveInput, setClaveInput] = useState("53131613");
+  const [descInput, setDescInput] = useState("Productos para el cuidado de la piel y cosméticos");
   const [unidadInput, setUnidadInput] = useState("H87"); // Pieza
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,18 +43,15 @@ export function SkuResolverModal({
   const currentItem = unmappedSkus[currentIdx] || unmappedSkus[0];
 
   const handleSuggest = () => {
-    // Pick recommendation based on item description
     const desc = currentItem.descripcion.toLowerCase();
-    let match = DEMO_CATALOG_SUGGESTIONS[0];
+    let match = SAT_CATALOG_SUGGESTIONS[0];
     if (desc.includes("mask") || desc.includes("mascarilla")) {
-      match = DEMO_CATALOG_SUGGESTIONS[2];
-    } else if (desc.includes("clean") || desc.includes("oil") || desc.includes("limpiador")) {
-      match = DEMO_CATALOG_SUGGESTIONS[1];
+      match = SAT_CATALOG_SUGGESTIONS[2];
     } else if (desc.includes("sun") || desc.includes("solar")) {
-      match = DEMO_CATALOG_SUGGESTIONS[3];
+      match = SAT_CATALOG_SUGGESTIONS[3];
     }
     setClaveInput(match.clave);
-    setDescInput(`${match.descripcion} (demo, validar con catálogo SAT)`);
+    setDescInput(match.descripcion);
   };
 
   const handleSaveAndConfirm = async () => {

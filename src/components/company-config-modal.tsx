@@ -21,7 +21,7 @@ export function CompanyConfigModal({
   const [regimenFiscal, setRegimenFiscal] = useState("601");
   const [codigoPostal, setCodigoPostal] = useState("54090");
   const [serie, setSerie] = useState("F");
-  const [pacProvider, setPacProvider] = useState("mock");
+  const [pacProvider, setPacProvider] = useState("facturacom");
   const [facturaApiKey, setFacturaApiKey] = useState("");
   const [facturaSecretKey, setFacturaSecretKey] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -195,12 +195,12 @@ export function CompanyConfigModal({
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-600 font-medium">Proveedor de Timbrado:</span>
                 <span className="font-bold text-blue-700 px-2 py-0.5 bg-blue-100 rounded-md">
-                  {pacProvider === "mock" ? "Simulador Realista (Mock)" : "Factura.com (Oficial)"}
+                  Factura.com API v4 (Oficial)
                 </span>
               </div>
 
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                El sistema opera actualmente con timbres de prueba oficiales para simular folios fiscales (UUID), sellos y cadena original sin gastar créditos. Cuando recibas tus credenciales de Factura.com, se activarán automáticamente.
+                Conectado a la API v4 de Factura.com para la emisión, sellado y timbrado oficial de comprobantes CFDI 4.0 ante el SAT.
               </p>
             </div>
           </div>
