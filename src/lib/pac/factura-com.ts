@@ -1,5 +1,9 @@
 // src/lib/pac/factura-com.ts
 // Cliente oficial para timbrado CFDI 4.0 con la API v4 de Factura.com
+//
+// URLs oficiales:
+//   Producción: https://api.factura.com          (ej. https://api.factura.com/v4/cfdi40/create)
+//   Sandbox:    https://sandbox.factura.com/api  (ej. https://sandbox.factura.com/api/v4/cfdi40/create)
 
 import {
   PacClient,
@@ -8,6 +12,14 @@ import {
   PacTimbradoResult,
   PacCancelacionResult,
 } from "./pac-interface";
+
+interface FacturaComResponse {
+  ok: boolean;
+  status: number;
+  json: any;
+  text: string;
+  isJson: boolean;
+}
 
 export class FacturaComPacClient implements PacClient {
   private apiKey: string;
@@ -30,9 +42,11 @@ export class FacturaComPacClient implements PacClient {
 
     const isSandbox = envVal.toLowerCase() === "sandbox";
 
-    this.baseUrl = isSandbox
-      ? "https://sandbox.factura.com/api/v4"
-      : "https://factura.com/api/v4";
+    const customBase = process.env.FACTURA_COM_BASE_URL || process.env.FACTURACOM_BASE_URL;
+    this.baseUrl = (
+      customBase ||
+      (isSandbox ? "https://sandbox.factura.com/api" : "https://api.factura.com")
+    ).replace(/\/+$/, "");
 
     if (!this.apiKey || !this.secretKey) {
       console.warn(
@@ -47,7 +61,234 @@ export class FacturaComPacClient implements PacClient {
       "F-PLUGIN": "9d4095c8f7ed5785cb14c0e3b033eeb8252416ed",
       "F-Api-Key": this.apiKey,
       "F-Secret-Key": this.secretKey,
+      "F-ApiKey": this.apiKey,
+      "F-SecretKey": this.secretKey,
     };
+  }
+
+  /**
+   * Realiza una petición a Factura.com y parsea la respuesta de forma segura
+   * (evita "Unexpected token '<'" cuando el servidor devuelve HTML).
+   */
+  private async request(
+    method: "GET" | "POST",
+    path: string,
+    body?: any
+  ): Promise<FacturaComResponse> {
+    const url = `${this.baseUrl}${path}`;
+    const response = await fetch(url, {
+      method,
+      headers: this.getHeaders(),
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+    });
+
+    let text = "";
+    try {
+      if (typeof response.text === "function") {
+        text = await response.text();
+      }
+    } catch {
+      text = "";
+    }
+
+    let json: any = null;
+    let isJson = false;
+    try {
+      if (text) {
+        json = JSON.parse(text);
+        isJson = true;
+      } else if (typeof (response as any).json === "function") {
+        json = await (response as any).json();
+        isJson = true;
+      }
+    } catch {
+      json = null;
+    }
+
+    return { ok: response.ok, status: response.status, json, text, isJson };
+  }
+
+  private describeNonJson(res: FacturaComResponse, path: string): string {
+    const snippet = res.text.replace(/\s+/g, " ").slice(0, 160);
+    return `Factura.com respondió HTTP ${res.status} con contenido no-JSON en ${this.baseUrl}${path}. Verifica la URL de la API, el ambiente (FACTURA_COM_ENVIRONMENT) y tus credenciales. Respuesta: ${snippet}`;
+  }
+
+  private extractErrorMessage(json: any, fallback: string): string {
+    if (!json) return fallback;
+    const msg = json.message ?? json.error ?? json.Message ?? json.errors;
+    if (!msg) return fallback;
+    if (typeof msg === "string") return msg;
+    if (typeof msg === "object") {
+      if (typeof msg.message === "string") return msg.message;
+      try {
+        return JSON.stringify(msg);
+      } catch {
+        return fallback;
+      }
+    }
+    return String(msg);
+  }
+
+  private isErrorPayload(json: any): boolean {
+    if (!json) return true;
+    const status = String(json.response ?? json.status ?? "").toLowerCase();
+    return status === "error" || status === "fail" || status === "failed";
+  }
+
+  /** Busca recursivamente una llave (case-insensitive) dentro de un objeto */
+  private findKey(obj: any, keys: string[], depth = 0): any {
+    if (!obj || typeof obj !== "object" || depth > 4) return undefined;
+    const lowerKeys = keys.map((k) => k.toLowerCase());
+    for (const [k, v] of Object.entries(obj)) {
+      if (lowerKeys.includes(k.toLowerCase()) && v !== null && v !== undefined && v !== "") {
+        if (typeof v !== "object") return v;
+      }
+    }
+    for (const v of Object.values(obj)) {
+      if (v && typeof v === "object") {
+        const found = this.findKey(v, keys, depth + 1);
+        if (found !== undefined) return found;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Obtiene (o registra) el cliente en Factura.com y devuelve su UID.
+   * Factura.com v4 admite Receptor.UID de un cliente existente o datos completos de receptor.
+   */
+  private async resolverReceptorUid(payload: CfdiPayload): Promise<string | undefined> {
+    if (payload.receptor.uid) {
+      return payload.receptor.uid;
+    }
+
+    const rfc = payload.receptor.rfc.trim().toUpperCase();
+
+    // 1. Buscar por RFC
+    try {
+      const found = await this.request("GET", `/v1/clients/${encodeURIComponent(rfc)}`);
+      if (found.isJson && found.ok && !this.isErrorPayload(found.json)) {
+        const uid = this.findKey(found.json, ["UID", "uid"]);
+        if (uid) return String(uid);
+      }
+    } catch {
+      /* fallback */
+    }
+
+    // 2. Buscar en el listado completo (algunas cuentas no exponen búsqueda por RFC)
+    try {
+      const lista = await this.obtenerClientes();
+      const match = lista.find(
+        (c: any) => String(c.RFC || c.rfc || c.Rfc || "").trim().toUpperCase() === rfc
+      );
+      const uid = match ? match.UID || match.uid : undefined;
+      if (uid) return String(uid);
+    } catch (e) {
+      console.warn("[FacturaCom] No se pudo consultar el listado de clientes:", e);
+    }
+
+    // 3. Intentar registrar al cliente en Factura.com
+    try {
+      const nuevo: any = {
+        razons: payload.receptor.nombre,
+        rfc,
+        regimen: payload.receptor.regimenFiscalReceptor,
+        usocfdi: payload.receptor.usoCfdi || "G03",
+        codpos: payload.receptor.domicilioFiscalReceptor,
+        pais: "MEX",
+      };
+      const emailDefault =
+        process.env.FACTURA_COM_CLIENTE_EMAIL || process.env.FACTURACOM_CLIENTE_EMAIL;
+      if (emailDefault) nuevo.email = emailDefault;
+      if (payload.receptor.numRegIdTrib) nuevo.numregidtrib = payload.receptor.numRegIdTrib;
+
+      const created = await this.request("POST", `/v1/clients/create`, nuevo);
+      if (created.isJson && created.ok && !this.isErrorPayload(created.json)) {
+        const uid = this.findKey(created.json, ["UID", "uid"]);
+        if (uid) return String(uid);
+      }
+    } catch (err) {
+      console.warn("[FacturaCom] No se pudo registrar al cliente:", err);
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Obtiene el ID numérico de la serie configurada en Factura.com (ej. "F").
+   */
+  private async resolverSerieId(serieNombre: string, tipo: string): Promise<string | undefined> {
+    const envSerieId = process.env.FACTURA_COM_SERIE_ID || process.env.FACTURACOM_SERIE_ID;
+    if (envSerieId) return envSerieId;
+
+    const res = await this.request("GET", `/v4/series`);
+    if (!res.isJson || !res.ok || this.isErrorPayload(res.json)) {
+      console.warn(
+        "[FacturaCom] No se pudo consultar /v4/series:",
+        res.isJson ? this.extractErrorMessage(res.json, `HTTP ${res.status}`) : res.text.slice(0, 160)
+      );
+      return undefined;
+    }
+
+    const lista: any[] = Array.isArray(res.json?.data)
+      ? res.json.data
+      : Array.isArray(res.json?.Data)
+      ? res.json.Data
+      : Array.isArray(res.json)
+      ? res.json
+      : [];
+
+    const nombre = (serieNombre || "").trim().toUpperCase();
+    const getName = (s: any) => String(s.SerieName ?? s.serie ?? s.Serie ?? s.name ?? "").trim().toUpperCase();
+    const getType = (s: any) => String(s.SerieType ?? s.tipo ?? s.type ?? "").trim().toLowerCase();
+    const getId = (s: any) => s.SerieID ?? s.SerieId ?? s.id ?? s.ID ?? s.uid ?? s.UID;
+    const isActive = (s: any) => {
+      const st = String(s.SerieStatus ?? s.status ?? "activa").toLowerCase();
+      return !st.includes("inactiv") && !st.includes("desactiv");
+    };
+
+    const candidatos = lista.filter(isActive);
+    const match =
+      candidatos.find((s) => getName(s) === nombre && (!getType(s) || getType(s) === tipo)) ||
+      candidatos.find((s) => getName(s) === nombre) ||
+      candidatos.find((s) => getType(s) === tipo);
+
+    const id = match ? getId(match) : undefined;
+    return id !== undefined && id !== null ? String(id) : undefined;
+  }
+
+  /** Extrae un atributo XML de un nodo dado */
+  private xmlAttr(xml: string, node: string, attr: string): string | undefined {
+    const nodeMatch = xml.match(new RegExp(`<[\\w]*:?${node}\\b[^>]*>`, "i"));
+    if (!nodeMatch) return undefined;
+    const attrMatch = nodeMatch[0].match(new RegExp(`\\b${attr}="([^"]*)"`));
+    return attrMatch ? attrMatch[1] : undefined;
+  }
+
+  /** Decodifica una respuesta de descarga de XML (texto plano, JSON base64 o JSON con texto) */
+  private decodeXmlResponse(res: FacturaComResponse): string {
+    const trimmed = res.text.trim();
+    if (trimmed.startsWith("<")) {
+      // Puede ser XML real o una página HTML de error
+      if (/<cfdi:Comprobante|<\?xml/i.test(trimmed) && !/<!DOCTYPE html/i.test(trimmed)) {
+        return trimmed;
+      }
+      return "";
+    }
+    if (res.isJson && res.json) {
+      const candidate = res.json.file ?? res.json.data ?? res.json.xml ?? res.json.Data;
+      if (typeof candidate === "string") {
+        if (candidate.trim().startsWith("<")) return candidate.trim();
+        try {
+          const decoded = Buffer.from(candidate, "base64").toString("utf-8");
+          if (decoded.includes("<")) return decoded;
+        } catch {
+          /* noop */
+        }
+      }
+    }
+    return "";
   }
 
   /**
@@ -67,13 +308,30 @@ export class FacturaComPacClient implements PacClient {
     }
 
     try {
-      // 1. Transformar conceptos al formato CFDI 4.0 de Factura.com
+      // 1. Resolver UID del receptor en el catálogo de Factura.com (o fallback a datos completos)
+      let receptorUid: string | undefined = undefined;
+      try {
+        receptorUid = await this.resolverReceptorUid(payload);
+      } catch (rErr) {
+        console.warn("[FacturaCom] No se pudo resolver UID del receptor:", rErr);
+      }
+
+      // 2. Resolver serie (ID numérico en Factura.com)
+      const tipoDocumento = payload.tipoDeComprobante === "T" ? "traslado" : "factura";
+      let serieId: string | undefined = undefined;
+      try {
+        serieId = await this.resolverSerieId(payload.serie || "F", tipoDocumento);
+      } catch (sErr) {
+        console.warn("[FacturaCom] No se pudo resolver serie ID:", sErr);
+      }
+
+      // 3. Transformar conceptos al formato CFDI 4.0 de Factura.com
       const conceptosFactura = payload.conceptos.map((c) => {
         const valorUnitario = Number(c.valorUnitario.toFixed(2));
         const base = Number((c.cantidad * valorUnitario).toFixed(2));
         const iva = Number((base * 0.16).toFixed(2));
 
-        return {
+        const concepto: any = {
           ClaveProdServ: c.claveProdServ || "53131600",
           NoIdentificacion: c.noIdentificacion || "SKU",
           Cantidad: c.cantidad,
@@ -82,7 +340,6 @@ export class FacturaComPacClient implements PacClient {
           Descripcion: c.descripcion,
           ValorUnitario: valorUnitario,
           Importe: base,
-          Descuento: c.descuento ? Number(c.descuento.toFixed(2)) : 0,
           ObjetoImp: c.objetoImp || "02",
           Impuestos: {
             Traslados: [
@@ -90,74 +347,83 @@ export class FacturaComPacClient implements PacClient {
                 Base: base,
                 Impuesto: "002",
                 TipoFactor: "Tasa",
-                TasaOCuota: "0.160000",
+                TasaOCuota: "0.16",
                 Importe: iva,
               },
             ],
+            Retenidos: [],
+            Locales: [],
           },
         };
+        if (c.descuento) concepto.Descuento = Number(c.descuento.toFixed(2));
+        return concepto;
       });
 
-      // 2. Construir cuerpo JSON para /api/v4/cfdi40/create
+      // 4. Construir cuerpo JSON para /v4/cfdi40/create
+      const receptorNode: any = receptorUid
+        ? { UID: receptorUid }
+        : {
+            Rfc: payload.receptor.rfc,
+            Nombre: payload.receptor.nombre,
+            DomicilioFiscalReceptor: payload.receptor.domicilioFiscalReceptor,
+            RegimenFiscalReceptor: payload.receptor.regimenFiscalReceptor,
+            UsoCFDI: payload.receptor.usoCfdi || "G03",
+          };
+
       const body: any = {
-        Receptor: {
-          Rfc: payload.receptor.rfc,
-          Nombre: payload.receptor.nombre,
-          DomicilioFiscalReceptor: payload.receptor.domicilioFiscalReceptor,
-          RegimenFiscalReceptor: payload.receptor.regimenFiscalReceptor,
-          UsoCFDI: payload.receptor.usoCfdi || "G03",
-        },
-        TipoDocumento: payload.tipoDeComprobante === "T" ? "traslado" : "factura",
+        Receptor: receptorNode,
+        TipoDocumento: tipoDocumento,
         Conceptos: conceptosFactura,
         UsoCFDI: payload.receptor.usoCfdi || "G03",
         FormaPago: payload.formaPago || "03",
         MetodoPago: payload.metodoPago || "PUE",
         Moneda: payload.moneda || "MXN",
-        Serie: payload.serie || "A",
-        Folio: String(payload.folio || "1"),
         CondicionesDePago: "Inmediato",
-        LugarExpedicion: payload.lugarExpedicion || "06600",
+        LugarExpedicion: payload.lugarExpedicion || "54090",
         Exportacion: payload.exportacion || "01",
         EnviarCorreo: false,
       };
+
+      if (serieId) body.Serie = Number.isNaN(Number(serieId)) ? serieId : Number(serieId);
 
       // Información global si aplica (ventas al público en general)
       if (payload.informacionGlobal) {
         body.InformacionGlobal = {
           Periodicidad: payload.informacionGlobal.periodicidad,
           Meses: payload.informacionGlobal.meses,
-          Año: payload.informacionGlobal.año,
+          "Año": payload.informacionGlobal.año,
         };
       }
 
-      console.log(`[FacturaCom] Enviando petición a ${this.baseUrl}/cfdi40/create...`);
+      console.log(`[FacturaCom] Enviando petición a ${this.baseUrl}/v4/cfdi40/create...`);
 
-      const response = await fetch(`${this.baseUrl}/cfdi40/create`, {
-        method: "POST",
-        headers: this.getHeaders(),
-        body: JSON.stringify(body),
-      });
+      const res = await this.request("POST", `/v4/cfdi40/create`, body);
 
-      const json = await response.json();
+      if (!res.isJson) {
+        const msg = this.describeNonJson(res, "/v4/cfdi40/create");
+        console.error("[FacturaCom]", msg);
+        return { success: false, errorMessage: msg, errorCode: `HTTP_${res.status}` };
+      }
 
-      if (!response.ok || json.response === "error") {
-        const errorMsg =
-          json.message ||
-          json.error ||
-          `Error ${response.status} devuelto por Factura.com`;
-        console.error("[FacturaCom] Error al timbrar:", errorMsg);
+      const json = res.json;
+      if (!res.ok || this.isErrorPayload(json)) {
+        const errorMsg = this.extractErrorMessage(
+          json,
+          `Error ${res.status} devuelto por Factura.com`
+        );
+        console.error("[FacturaCom] Error al timbrar:", errorMsg, JSON.stringify(json).slice(0, 800));
         return {
           success: false,
           errorMessage: errorMsg,
-          errorCode: String(json.error || response.status),
+          errorCode: String(json?.code || res.status),
         };
       }
 
-      const data = json.data || {};
-      const uuid = data.uuid || data.UUID;
-      const uid = data.UID || uuid;
+      const uuid = this.findKey(json, ["UUID"]) as string | undefined;
+      const uid = (this.findKey(json, ["uid", "invoice_uid", "cfdi_uid"]) as string | undefined) || uuid;
 
       if (!uuid) {
+        console.error("[FacturaCom] Respuesta sin UUID:", JSON.stringify(json).slice(0, 800));
         return {
           success: false,
           errorMessage: "Factura.com respondió con éxito pero no devolvió el UUID fiscal.",
@@ -165,34 +431,56 @@ export class FacturaComPacClient implements PacClient {
         };
       }
 
-      // 3. Descargar el XML sellado oficial
+      // 5. Descargar el XML sellado oficial
       let xmlContent = "";
-      try {
-        const xmlRes = await fetch(`${this.baseUrl}/cfdi40/${uid}/xml`, {
-          method: "GET",
-          headers: this.getHeaders(),
-        });
-        if (xmlRes.ok) {
-          const xmlJson = await xmlRes.json();
-          if (xmlJson.file) {
-            // Factura.com suele enviar el XML codificado en base64
-            xmlContent = Buffer.from(xmlJson.file, "base64").toString("utf-8");
-          } else if (typeof xmlJson.data === "string") {
-            xmlContent = Buffer.from(xmlJson.data, "base64").toString("utf-8");
+      for (const id of Array.from(new Set([uid, uuid].filter(Boolean))) as string[]) {
+        try {
+          const xmlRes = await this.request("GET", `/v4/cfdi40/${encodeURIComponent(id)}/xml`);
+          if (xmlRes.ok) {
+            xmlContent = this.decodeXmlResponse(xmlRes);
+            if (xmlContent) break;
           }
+        } catch (xmlErr) {
+          console.warn("[FacturaCom] No se pudo descargar el XML directo:", xmlErr);
         }
-      } catch (xmlErr) {
-        console.warn("[FacturaCom] No se pudo descargar el XML directo:", xmlErr);
       }
+
+      // 6. Extraer datos del timbre (de la respuesta o del XML oficial)
+      const fromXml = (attr: string) =>
+        xmlContent ? this.xmlAttr(xmlContent, "TimbreFiscalDigital", attr) : undefined;
+
+      const fechaTimbrado =
+        fromXml("FechaTimbrado") ||
+        (this.findKey(json, ["FechaTimbrado", "fecha_timbrado"]) as string) ||
+        new Date().toISOString();
+      const noCertificadoSat =
+        fromXml("NoCertificadoSAT") ||
+        (this.findKey(json, ["NoCertificadoSAT"]) as string) ||
+        "";
+      const selloCfd =
+        fromXml("SelloCFD") || (this.findKey(json, ["SelloCFD", "Sello"]) as string) || "";
+      const selloSat =
+        fromXml("SelloSAT") || (this.findKey(json, ["SelloSAT"]) as string) || "";
+      const rfcProvCertif =
+        fromXml("RfcProvCertif") || (this.findKey(json, ["RfcProvCertif"]) as string) || "";
+
+      const serieResp =
+        (xmlContent && this.xmlAttr(xmlContent, "Comprobante", "Serie")) ||
+        (this.findKey(json, ["Serie", "serie"]) as string | undefined);
+      const folioResp =
+        (xmlContent && this.xmlAttr(xmlContent, "Comprobante", "Folio")) ||
+        (this.findKey(json, ["Folio", "folio"]) as string | undefined);
+
+      const cadenaOriginal = `||1.1|${uuid}|${fechaTimbrado}|${rfcProvCertif}|${selloCfd}|${noCertificadoSat}||`;
 
       // Si no se pudo descargar el XML en este instante, construimos una representación con los sellos oficiales
       if (!xmlContent) {
         xmlContent = `<?xml version="1.0" encoding="utf-8"?>
-<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" Version="4.0" Serie="${payload.serie}" Folio="${payload.folio}" Total="${payload.total}" Sello="${data.sello || ""}">
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" Version="4.0" Serie="${serieResp || payload.serie}" Folio="${folioResp || payload.folio}" Total="${payload.total}" Sello="${selloCfd}">
   <cfdi:Emisor Rfc="${payload.emisor.rfc}" Nombre="${payload.emisor.nombre}" RegimenFiscal="${payload.emisor.regimenFiscal}"/>
   <cfdi:Receptor Rfc="${payload.receptor.rfc}" Nombre="${payload.receptor.nombre}" DomicilioFiscalReceptor="${payload.receptor.domicilioFiscalReceptor}" RegimenFiscalReceptor="${payload.receptor.regimenFiscalReceptor}" UsoCFDI="${payload.receptor.usoCfdi}"/>
   <cfdi:Complemento>
-    <tfd:TimbreFiscalDigital Version="1.1" UUID="${uuid}" FechaTimbrado="${data.fecha || new Date().toISOString()}" SelloCFD="${data.sello || ""}" NoCertificadoSAT="${data.noCertificadoSAT || "00001000000504465028"}" SelloSAT="${data.selloSAT || ""}"/>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="${uuid}" FechaTimbrado="${fechaTimbrado}" RfcProvCertif="${rfcProvCertif}" SelloCFD="${selloCfd}" NoCertificadoSAT="${noCertificadoSat}" SelloSAT="${selloSat}"/>
   </cfdi:Complemento>
 </cfdi:Comprobante>`;
       }
@@ -200,18 +488,21 @@ export class FacturaComPacClient implements PacClient {
       return {
         success: true,
         uuid,
-        fechaTimbrado: data.fecha || new Date().toISOString(),
-        noCertificadoSat: data.noCertificadoSAT || "00001000000504465028",
-        selloCfd: data.sello || "SELLO_CFD_FACTURA_COM",
-        selloSat: data.selloSAT || "SELLO_SAT_FACTURA_COM",
-        cadenaOriginal: data.cadenaOriginal || `||4.0|${uuid}||`,
+        pacUid: uid,
+        serie: serieResp,
+        folio: folioResp,
+        fechaTimbrado,
+        noCertificadoSat: noCertificadoSat || "00001000000504465028",
+        selloCfd: selloCfd || "SELLO_CFD_FACTURA_COM",
+        selloSat: selloSat || "SELLO_SAT_FACTURA_COM",
+        cadenaOriginal,
         xmlContent,
       };
     } catch (err: any) {
       console.error("[FacturaCom] Excepción de conexión:", err);
       return {
         success: false,
-        errorMessage: `Error de red al conectar con Factura.com: ${err.message}`,
+        errorMessage: `Error al conectar con Factura.com: ${err.message}`,
         errorCode: "NETWORK_EXCEPTION",
       };
     }
@@ -233,27 +524,29 @@ export class FacturaComPacClient implements PacClient {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/cfdi40/${uuid}/cancel`, {
-        method: "POST",
-        headers: this.getHeaders(),
-        body: JSON.stringify({
-          motivo: motivo || "02",
-          folioSustitucion: folioSustitucion || null,
-        }),
+      const path = `/v4/cfdi40/${encodeURIComponent(uuid)}/cancel`;
+      const res = await this.request("POST", path, {
+        motivo: motivo || "02",
+        folioSustituto: folioSustitucion || "",
       });
 
-      const json = await response.json();
+      if (!res.isJson) {
+        return { success: false, mensaje: this.describeNonJson(res, path) };
+      }
 
-      if (!response.ok || json.response === "error") {
+      if (!res.ok || this.isErrorPayload(res.json)) {
         return {
           success: false,
-          mensaje: json.message || "Error al cancelar en Factura.com",
+          mensaje: this.extractErrorMessage(res.json, "Error al cancelar en Factura.com"),
         };
       }
 
       return {
         success: true,
-        mensaje: json.message || `CFDI ${uuid} cancelado exitosamente en Factura.com.`,
+        mensaje: this.extractErrorMessage(
+          res.json,
+          `CFDI ${uuid} cancelado exitosamente en Factura.com.`
+        ),
         fechaCancelacion: new Date().toISOString(),
       };
     } catch (err: any) {
@@ -268,44 +561,49 @@ export class FacturaComPacClient implements PacClient {
    * Obtener XML oficial de una factura timbrada
    */
   async obtenerXml(uuidOrUid: string): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/cfdi40/${uuidOrUid}/xml`, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
+    const path = `/v4/cfdi40/${encodeURIComponent(uuidOrUid)}/xml`;
+    const res = await this.request("GET", path);
 
-    if (!response.ok) {
-      throw new Error(`Error al obtener XML de Factura.com: HTTP ${response.status}`);
+    if (!res.ok) {
+      throw new Error(`Error al obtener XML de Factura.com: HTTP ${res.status}`);
     }
 
-    const json = await response.json();
-    if (json.file) {
-      return Buffer.from(json.file, "base64").toString("utf-8");
-    }
-    if (typeof json.data === "string") {
-      return Buffer.from(json.data, "base64").toString("utf-8");
-    }
+    const xml = this.decodeXmlResponse(res);
+    if (xml) return xml;
     throw new Error("Formato de respuesta XML no reconocido por Factura.com");
   }
 
   /**
-   * Obtener PDF oficial de una factura timbrada (Base64)
+   * Obtener PDF oficial de una factura timbrada (Base64 o URL)
    */
   async obtenerPdf(uuidOrUid: string): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/cfdi40/${uuidOrUid}/pdf`, {
+    const url = `${this.baseUrl}/v4/cfdi40/${encodeURIComponent(uuidOrUid)}/pdf`;
+    const response = await fetch(url, {
       method: "GET",
       headers: this.getHeaders(),
+      cache: "no-store",
     });
 
     if (!response.ok) {
       throw new Error(`Error al obtener PDF de Factura.com: HTTP ${response.status}`);
     }
 
-    const json = await response.json();
-    if (json.file) {
-      return json.file; // base64
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    // PDF binario directo
+    if (buffer.subarray(0, 5).toString("latin1") === "%PDF-") {
+      return buffer.toString("base64");
     }
-    if (json.file_url) {
-      return json.file_url;
+
+    // Respuesta JSON con base64 o URL
+    const text = buffer.toString("utf-8");
+    try {
+      const json = JSON.parse(text);
+      if (typeof json.file === "string") return json.file;
+      if (typeof json.data === "string") return json.data;
+      if (typeof json.file_url === "string") return json.file_url;
+    } catch {
+      /* noop */
     }
     throw new Error("Formato de respuesta PDF no reconocido por Factura.com");
   }
@@ -320,27 +618,24 @@ export class FacturaComPacClient implements PacClient {
       );
     }
 
-    let response = await fetch(`${this.baseUrl}/clients`, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
+    const path = `/v1/clients`;
+    const res = await this.request("GET", path);
 
-    if (!response.ok) {
-      const altUrl = this.baseUrl.replace("/api/v4", "/api/v1");
-      response = await fetch(`${altUrl}/clients`, {
-        method: "GET",
-        headers: this.getHeaders(),
-      });
+    if (!res.isJson) {
+      throw new Error(this.describeNonJson(res, path));
     }
 
-    if (!response.ok) {
-      const errText = await response.text();
+    if (!res.ok || this.isErrorPayload(res.json)) {
       throw new Error(
-        `Error ${response.status} de Factura.com al consultar clientes: ${errText}`
+        `Error ${res.status} de Factura.com al consultar clientes: ${this.extractErrorMessage(
+          res.json,
+          "respuesta inválida"
+        )}`
       );
     }
 
-    const json = await response.json();
-    return json.data || json.clients || (Array.isArray(json) ? json : []);
+    const json = res.json;
+    const lista = json.data ?? json.Data ?? json.clients ?? json;
+    return Array.isArray(lista) ? lista : [];
   }
 }

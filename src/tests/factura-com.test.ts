@@ -63,41 +63,72 @@ describe("FacturaComPacClient", () => {
     process.env.FACTURA_COM_SECRET_KEY = "test_secret_key";
     process.env.FACTURA_COM_ENVIRONMENT = "sandbox";
 
+    const jsonCreateResp = {
+      response: "success",
+      message: "Factura creada exitosamente.",
+      data: {
+        UID: "mock-uid-1234",
+        uuid: "3D5A1234-ABCD-4321-9876-FEDCBA987654",
+        folio: "101",
+        serie: "A",
+        fecha: "2026-11-10 12:05:00",
+        total: 1160,
+        sello: "SELLO_TEST_CFD",
+        selloSAT: "SELLO_TEST_SAT",
+        noCertificadoSAT: "00001000000504465028",
+        cadenaOriginal: "||4.0|3D5A1234-ABCD...||",
+      },
+    };
+
+    const xmlBase64 = Buffer.from("<xml>TEST_XML_CONTENT</xml>").toString("base64");
+
     // Mock global fetch
     const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/clients")) {
+        const payload = {
+          status: "success",
+          data: [{ UID: "mock-client-uid-789", RFC: "EKU9003173C9" }],
+        };
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(JSON.stringify(payload)),
+          json: () => Promise.resolve(payload),
+        });
+      }
+      if (url.includes("/series")) {
+        const payload = {
+          status: "success",
+          data: [{ SerieID: 12, SerieName: "A", SerieType: "factura" }],
+        };
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(JSON.stringify(payload)),
+          json: () => Promise.resolve(payload),
+        });
+      }
       if (url.includes("/cfdi40/create")) {
         return Promise.resolve({
           ok: true,
-          json: () =>
-            Promise.resolve({
-              response: "success",
-              message: "Factura creada exitosamente.",
-              data: {
-                UID: "mock-uid-1234",
-                uuid: "3D5A1234-ABCD-4321-9876-FEDCBA987654",
-                folio: "101",
-                serie: "A",
-                fecha: "2026-11-10 12:05:00",
-                total: 1160,
-                sello: "SELLO_TEST_CFD",
-                selloSAT: "SELLO_TEST_SAT",
-                noCertificadoSAT: "00001000000504465028",
-                cadenaOriginal: "||4.0|3D5A1234-ABCD...||",
-              },
-            }),
+          status: 200,
+          text: () => Promise.resolve(JSON.stringify(jsonCreateResp)),
+          json: () => Promise.resolve(jsonCreateResp),
         });
       }
       if (url.includes("/xml")) {
+        const payload = {
+          response: "success",
+          file: xmlBase64,
+        };
         return Promise.resolve({
           ok: true,
-          json: () =>
-            Promise.resolve({
-              response: "success",
-              file: Buffer.from("<xml>TEST_XML_CONTENT</xml>").toString("base64"),
-            }),
+          status: 200,
+          text: () => Promise.resolve(JSON.stringify(payload)),
+          json: () => Promise.resolve(payload),
         });
       }
-      return Promise.reject(new Error("URL no manejada"));
+      return Promise.reject(new Error(`URL no manejada: ${url}`));
     });
 
     global.fetch = mockFetch;

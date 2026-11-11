@@ -23,6 +23,7 @@ export interface PacEmisor {
 }
 
 export interface PacReceptor {
+  uid?: string;
   rfc: string;
   nombre: string;
   domicilioFiscalReceptor: string; // CP
@@ -96,6 +97,9 @@ export interface CfdiPayload {
 export interface PacTimbradoResult {
   success: boolean;
   uuid?: string;
+  pacUid?: string; // Identificador interno del CFDI en el PAC (ej. UID de Factura.com)
+  serie?: string; // Serie asignada por el PAC
+  folio?: string; // Folio asignado por el PAC
   fechaTimbrado?: string;
   noCertificadoSat?: string;
   selloCfd?: string;
