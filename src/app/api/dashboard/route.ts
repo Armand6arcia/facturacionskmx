@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ensureTablesExist } from "@/lib/db-init";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    await ensureTablesExist();
+
     // 1. Estadísticas globales
     const [
       totalDocumentos,

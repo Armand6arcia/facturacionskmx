@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { execSync } from "child_process";
+import { ensureTablesExist } from "@/lib/db-init";
 
 export const dynamic = "force-dynamic";
 
@@ -25,20 +25,8 @@ export async function GET() {
     // 1. Probar autenticación directa contra MySQL
     await prisma.$connect();
 
-    // 2. Sincronizar tablas (db push) y cargar catálogo inicial si no se ha hecho
-    let dbPushOutput = "";
-    try {
-      dbPushOutput = execSync("npx prisma db push --skip-generate", {
-        encoding: "utf-8",
-        stdio: "pipe",
-      });
-      execSync("npx tsx prisma/seed.ts", {
-        encoding: "utf-8",
-        stdio: "pipe",
-      });
-    } catch (pushErr: any) {
-      console.warn("Aviso en db push/seed:", pushErr?.message);
-    }
+    // 2. Asegurar tablas y catálogo inicial vía DDL directo
+    await ensureTablesExist();
 
     const [totalClientes, totalProductos] = await Promise.all([
       prisma.cliente.count().catch(() => 0),
@@ -53,7 +41,6 @@ export async function GET() {
         totalClientes,
         totalProductosSat: totalProductos,
       },
-      dbPushOutput: dbPushOutput.slice(0, 300),
     });
   } catch (error: any) {
     console.error("Error al conectar con la base de datos:", error);
@@ -91,3 +78,4 @@ export async function GET() {
     await prisma.$disconnect().catch(() => {});
   }
 }
+

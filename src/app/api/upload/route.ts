@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDocument, formatInvoiceDescription } from "@/lib/parsers";
 import { calculateDocumentTaxes } from "@/lib/tax/calculator";
+import { ensureTablesExist } from "@/lib/db-init";
 
 export async function POST(req: NextRequest) {
   try {
+    // Asegurar que las tablas existan en MySQL
+    await ensureTablesExist();
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const tipoFactura = (formData.get("tipoFactura") as string) || "CLIENTE";
