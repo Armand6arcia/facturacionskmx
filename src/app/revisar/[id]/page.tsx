@@ -624,15 +624,15 @@ export default function ReviewPage() {
                         {/* SKU & SAT status */}
                         <td className="py-2.5 px-3 align-top">
                           <div className="font-mono font-bold text-slate-800">{it.sku}</div>
-                          {isDeliveryFeeItem(it.sku, it.descripcion) ? (
+                          {isDeliveryFeeItem(it.sku, it.descripcion, it.claveProdServ, it.claveUnidad) ? (
                             <div className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 mt-1">
                               <Truck className="h-3 w-3 shrink-0" />
-                              78101800 (E48 Envío)
+                              78101800 (E48 Servicio)
                             </div>
                           ) : (
                             <div className="text-[11px] font-mono text-emerald-700 flex items-center gap-1 mt-0.5">
                               <CheckCircle2 className="h-3 w-3 shrink-0" />
-                              {it.claveProdServ || "53131613"} (H87)
+                              {it.claveProdServ || "53131613"} (H87 Pieza)
                             </div>
                           )}
                           {it.barcode && (

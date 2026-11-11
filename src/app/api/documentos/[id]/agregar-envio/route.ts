@@ -43,11 +43,9 @@ export async function POST(
 
     // Insertar partidas de envío
     for (const it of parsed.items) {
-      const isEnvio = isDeliveryFeeItem(it.sku, it.descripcion);
-      const sat = getSatMappingForConcepto(it.sku, it.descripcion);
-      const claveProdServ = isEnvio ? CLAVE_PROD_ENVIO_DEFAULT : sat.claveProdServ;
-      const claveUnidad = isEnvio ? CLAVE_UNIDAD_ENVIO_DEFAULT : sat.claveUnidad;
-      const descripcion = isEnvio ? DESCRIPCION_ENVIO_DEFAULT : (it.descripcion || DESCRIPCION_ENVIO_DEFAULT);
+      const claveProdServ = CLAVE_PROD_ENVIO_DEFAULT;
+      const claveUnidad = CLAVE_UNIDAD_ENVIO_DEFAULT;
+      const descripcion = DESCRIPCION_ENVIO_DEFAULT;
 
       const base = Number((it.cantidad * it.precioUnitario).toFixed(2));
       const iva = Number((base * 0.16).toFixed(2));

@@ -3,7 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { getPacClient } from "@/lib/pac/factory";
 import { checkDocumentAlerts } from "@/lib/alerts/checker";
 import { CfdiPayload } from "@/lib/pac/pac-interface";
-import { isDeliveryFeeItem, CLAVE_PROD_ENVIO_DEFAULT, CLAVE_PROD_PRODUCTO_DEFAULT, CLAVE_UNIDAD_ENVIO_DEFAULT, CLAVE_UNIDAD_PRODUCTO_DEFAULT } from "@/lib/sat/catalog-defaults";
+import {
+  isDeliveryFeeItem,
+  CLAVE_PROD_ENVIO_DEFAULT,
+  CLAVE_PROD_PRODUCTO_DEFAULT,
+  CLAVE_UNIDAD_ENVIO_DEFAULT,
+  CLAVE_UNIDAD_PRODUCTO_DEFAULT,
+  UNIDAD_ENVIO_DEFAULT,
+  UNIDAD_PRODUCTO_DEFAULT,
+  DESCRIPCION_ENVIO_DEFAULT,
+} from "@/lib/sat/catalog-defaults";
 
 export async function POST(req: NextRequest) {
   try {
@@ -161,13 +170,14 @@ export async function POST(req: NextRequest) {
         usoCfdi: doc.usoCfdi || doc.cliente?.usoCfdiDefault || "G03",
       },
       conceptos: activeItems.map((i) => {
-        const isEnvio = isDeliveryFeeItem(i.sku, i.descripcion);
+        const isEnvio = isDeliveryFeeItem(i.sku, i.descripcion, i.claveProdServ, i.claveUnidad);
         return {
-          claveProdServ: i.claveProdServ || (isEnvio ? CLAVE_PROD_ENVIO_DEFAULT : CLAVE_PROD_PRODUCTO_DEFAULT),
+          claveProdServ: isEnvio ? CLAVE_PROD_ENVIO_DEFAULT : (i.claveProdServ || CLAVE_PROD_PRODUCTO_DEFAULT),
           noIdentificacion: i.sku || (isEnvio ? "DELIVERYFEE" : "SKU"),
           cantidad: i.cantidad,
-          claveUnidad: i.claveUnidad || (isEnvio ? CLAVE_UNIDAD_ENVIO_DEFAULT : CLAVE_UNIDAD_PRODUCTO_DEFAULT),
-          descripcion: isEnvio ? "Servicio de envio" : i.descripcion,
+          claveUnidad: isEnvio ? CLAVE_UNIDAD_ENVIO_DEFAULT : (i.claveUnidad || CLAVE_UNIDAD_PRODUCTO_DEFAULT),
+          unidad: isEnvio ? UNIDAD_ENVIO_DEFAULT : UNIDAD_PRODUCTO_DEFAULT,
+          descripcion: isEnvio ? DESCRIPCION_ENVIO_DEFAULT : i.descripcion,
           valorUnitario: i.precioUnitario,
           importe: i.base,
           objetoImp: "02",

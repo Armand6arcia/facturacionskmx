@@ -456,7 +456,9 @@ export default function FacturaPage() {
                     {/* Main Row */}
                     <div className="flex items-start">
                       <div className="w-[12%] text-slate-700">
-                        {it.claveUnidad ? `${it.claveUnidad}/Pieza` : "H87/Pieza"}
+                        {it.claveUnidad === "E48" || it.claveProdServ === "78101800"
+                          ? "E48/Servicio"
+                          : `${it.claveUnidad || "H87"}/Pieza`}
                       </div>
                       <div className="w-[14%] font-mono text-slate-700">
                         {it.claveProdServ || "53131613"}

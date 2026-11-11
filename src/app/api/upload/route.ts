@@ -54,8 +54,8 @@ export async function POST(req: NextRequest) {
         // Asegurar que cada concepto del archivo de envío sea identificado como tal
         const envioItems: ParsedItem[] = parsedEnvio.items.map((it) => ({
           ...it,
-          sku: isDeliveryFeeItem(it.sku, it.descripcion) ? it.sku : (it.sku || "DELIVERYFEE"),
-          descripcion: isDeliveryFeeItem(it.sku, it.descripcion) ? it.descripcion : DESCRIPCION_ENVIO_DEFAULT,
+          sku: it.sku || "DELIVERYFEE",
+          descripcion: DESCRIPCION_ENVIO_DEFAULT,
           brand: it.brand || "Envío",
         }));
 

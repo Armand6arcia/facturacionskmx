@@ -14,6 +14,9 @@ import {
 } from "./pac-interface";
 import {
   getSatMappingForConcepto,
+  CLAVE_PROD_ENVIO_DEFAULT,
+  CLAVE_UNIDAD_ENVIO_DEFAULT,
+  UNIDAD_ENVIO_DEFAULT,
   DESCRIPCION_ENVIO_DEFAULT,
 } from "../sat/catalog-defaults";
 
@@ -334,16 +337,17 @@ export class FacturaComPacClient implements PacClient {
         const valorUnitario = Number(c.valorUnitario.toFixed(2));
         const base = Number((c.cantidad * valorUnitario).toFixed(2));
         const iva = Number((base * 0.16).toFixed(2));
-        const sat = getSatMappingForConcepto(c.noIdentificacion, c.descripcion);
+        const sat = getSatMappingForConcepto(c.noIdentificacion, c.descripcion, c.claveProdServ, c.claveUnidad);
+        const isEnvio = sat.isEnvio || c.claveUnidad === "E48" || c.claveProdServ === "78101800";
 
-        const claveProdServ = c.claveProdServ || sat.claveProdServ;
-        const claveUnidad = c.claveUnidad || sat.claveUnidad;
-        const unidad = c.unidad || sat.unidad;
-        const descripcion = sat.isEnvio ? DESCRIPCION_ENVIO_DEFAULT : c.descripcion;
+        const claveProdServ = isEnvio ? CLAVE_PROD_ENVIO_DEFAULT : (c.claveProdServ || sat.claveProdServ);
+        const claveUnidad = isEnvio ? CLAVE_UNIDAD_ENVIO_DEFAULT : (c.claveUnidad || sat.claveUnidad);
+        const unidad = isEnvio ? UNIDAD_ENVIO_DEFAULT : (c.unidad || sat.unidad || "Pieza");
+        const descripcion = isEnvio ? DESCRIPCION_ENVIO_DEFAULT : c.descripcion;
 
         const concepto: any = {
           ClaveProdServ: claveProdServ,
-          NoIdentificacion: c.noIdentificacion || (sat.isEnvio ? "DELIVERYFEE" : "SKU"),
+          NoIdentificacion: c.noIdentificacion || (isEnvio ? "DELIVERYFEE" : "SKU"),
           Cantidad: c.cantidad,
           ClaveUnidad: claveUnidad,
           Unidad: unidad,

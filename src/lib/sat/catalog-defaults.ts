@@ -7,13 +7,20 @@ export const UNIDAD_PRODUCTO_DEFAULT = "Pieza";
 
 export const CLAVE_PROD_ENVIO_DEFAULT = "78101800";    // Servicios de transporte y envío local/mensajería
 export const CLAVE_UNIDAD_ENVIO_DEFAULT = "E48";        // Unidad de servicio
-export const UNIDAD_ENVIO_DEFAULT = "Unidad de servicio";
+export const UNIDAD_ENVIO_DEFAULT = "Servicio";
 export const DESCRIPCION_ENVIO_DEFAULT = "Servicio de envio";
 
 /**
  * Detecta si un concepto corresponde a cobro de envío / flete (Deliveryfee)
  */
-export function isDeliveryFeeItem(sku?: string | null, descripcion?: string | null): boolean {
+export function isDeliveryFeeItem(
+  sku?: string | null,
+  descripcion?: string | null,
+  claveProdServ?: string | null,
+  claveUnidad?: string | null
+): boolean {
+  if (claveUnidad === "E48" || claveProdServ === "78101800") return true;
+
   const s = (sku || "").toLowerCase().trim();
   const d = (descripcion || "").toLowerCase().trim();
 
@@ -26,15 +33,20 @@ export function isDeliveryFeeItem(sku?: string | null, descripcion?: string | nu
 /**
  * Normaliza los datos fiscales SAT de una partida según las reglas de StyleKorean
  */
-export function getSatMappingForConcepto(sku?: string | null, descripcion?: string | null) {
-  const isEnvio = isDeliveryFeeItem(sku, descripcion);
+export function getSatMappingForConcepto(
+  sku?: string | null,
+  descripcion?: string | null,
+  claveProdServ?: string | null,
+  claveUnidad?: string | null
+) {
+  const isEnvio = isDeliveryFeeItem(sku, descripcion, claveProdServ, claveUnidad);
 
   if (isEnvio) {
     return {
       isEnvio: true,
       claveProdServ: CLAVE_PROD_ENVIO_DEFAULT,
       claveUnidad: CLAVE_UNIDAD_ENVIO_DEFAULT,
-      unidad: UNIDAD_ENVIO_DEFAULT,
+      unidad: UNIDAD_ENVIO_DEFAULT, // "Servicio"
       descripcion: DESCRIPCION_ENVIO_DEFAULT,
     };
   }
@@ -43,7 +55,7 @@ export function getSatMappingForConcepto(sku?: string | null, descripcion?: stri
     isEnvio: false,
     claveProdServ: CLAVE_PROD_PRODUCTO_DEFAULT,
     claveUnidad: CLAVE_UNIDAD_PRODUCTO_DEFAULT,
-    unidad: UNIDAD_PRODUCTO_DEFAULT,
+    unidad: UNIDAD_PRODUCTO_DEFAULT, // "Pieza"
     descripcion: descripcion || "Producto",
   };
 }
