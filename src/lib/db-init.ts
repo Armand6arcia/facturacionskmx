@@ -182,3 +182,4 @@ export async function ensureTablesExist() {
     console.error("Error al asegurar tablas en MySQL:", err);
   }
 }
+

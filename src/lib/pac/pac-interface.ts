@@ -119,5 +119,6 @@ export interface PacClient {
   cancelar(uuid: string, motivo: string, folioSustitucion?: string): Promise<PacCancelacionResult>;
   obtenerXml(uuid: string): Promise<string>;
   obtenerPdf(uuid: string): Promise<string>; // HTML/Base64 representable
+  obtenerClientes?(): Promise<any[]>;
 }
 

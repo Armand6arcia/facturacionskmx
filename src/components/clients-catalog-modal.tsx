@@ -11,6 +11,9 @@ import {
   MapPin,
   FileText,
   Loader2,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { NewClientModal } from "./new-client-modal";
 
@@ -29,6 +32,13 @@ export function ClientsCatalogModal({
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
+
+  // Sync state
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   const fetchClientes = async () => {
     setLoading(true);
@@ -50,6 +60,37 @@ export function ClientsCatalogModal({
       fetchClientes();
     }
   }, [isOpen, query]);
+
+  const handleSyncFacturaCom = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+
+    try {
+      const res = await fetch("/api/clientes/sync-facturacom", {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Error al sincronizar con Factura.com");
+      }
+
+      setSyncResult({
+        success: true,
+        message: data.mensaje || "Clientes sincronizados con éxito.",
+      });
+
+      await fetchClientes();
+      if (onClientUpdated) onClientUpdated();
+    } catch (err: any) {
+      setSyncResult({
+        success: false,
+        message: err.message || "Error al conectar con Factura.com.",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -76,9 +117,35 @@ export function ClientsCatalogModal({
             </button>
           </div>
 
+          {/* Sync Result Banner */}
+          {syncResult && (
+            <div
+              className={`px-5 py-2.5 text-xs flex items-center justify-between gap-2 border-b ${
+                syncResult.success
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  : "bg-red-50 text-red-800 border-red-200"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {syncResult.success ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                )}
+                <span>{syncResult.message}</span>
+              </div>
+              <button
+                onClick={() => setSyncResult(null)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Action Bar & Search */}
           <div className="p-4 border-b bg-white flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-            <div className="relative w-full sm:w-72">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
@@ -89,13 +156,25 @@ export function ClientsCatalogModal({
               />
             </div>
 
-            <button
-              onClick={() => setIsNewClientOpen(true)}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-sm transition-all"
-            >
-              <FileUp className="h-4 w-4" />
-              <span>Subir Constancia Fiscal (PDF)</span>
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={handleSyncFacturaCom}
+                disabled={syncing}
+                title="Descargar clientes registrados en tu cuenta de Factura.com"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:border-blue-400 bg-white hover:bg-blue-50/50 text-slate-700 hover:text-blue-700 rounded-xl text-xs font-semibold shadow-xs transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin text-blue-600" : ""}`} />
+                <span>{syncing ? "Sincronizando..." : "Sincronizar Factura.com"}</span>
+              </button>
+
+              <button
+                onClick={() => setIsNewClientOpen(true)}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-all"
+              >
+                <FileUp className="h-3.5 w-3.5" />
+                <span>Subir Constancia (PDF)</span>
+              </button>
+            </div>
           </div>
 
           {/* List */}
@@ -110,15 +189,25 @@ export function ClientsCatalogModal({
                 <Building2 className="h-10 w-10 text-slate-300 mx-auto mb-2" />
                 <p className="text-sm font-semibold text-slate-700">No se encontraron clientes</p>
                 <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                  Puedes dar de alta clientes al instante subiendo su Constancia de Situación Fiscal del SAT.
+                  Sincroniza los clientes de tu cuenta de Factura.com o sube una Constancia de Situación Fiscal.
                 </p>
-                <button
-                  onClick={() => setIsNewClientOpen(true)}
-                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold"
-                >
-                  <Plus className="h-4 w-4" />
-                  Alta de cliente
-                </button>
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <button
+                    onClick={handleSyncFacturaCom}
+                    disabled={syncing}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 border rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Sincronizar Factura.com
+                  </button>
+                  <button
+                    onClick={() => setIsNewClientOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-semibold"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Alta de cliente
+                  </button>
+                </div>
               </div>
             ) : (
               clientes.map((c) => (
@@ -174,4 +263,3 @@ export function ClientsCatalogModal({
     </>
   );
 }
-

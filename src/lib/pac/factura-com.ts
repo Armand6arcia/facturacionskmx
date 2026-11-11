@@ -309,4 +309,38 @@ export class FacturaComPacClient implements PacClient {
     }
     throw new Error("Formato de respuesta PDF no reconocido por Factura.com");
   }
+
+  /**
+   * Obtener lista de clientes registrados en Factura.com
+   */
+  async obtenerClientes(): Promise<any[]> {
+    if (!this.apiKey || !this.secretKey) {
+      throw new Error(
+        "Faltan las credenciales FACTURA_COM_API_KEY y FACTURA_COM_SECRET_KEY en las variables de entorno."
+      );
+    }
+
+    let response = await fetch(`${this.baseUrl}/clients`, {
+      method: "GET",
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      const altUrl = this.baseUrl.replace("/api/v4", "/api/v1");
+      response = await fetch(`${altUrl}/clients`, {
+        method: "GET",
+        headers: this.getHeaders(),
+      });
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(
+        `Error ${response.status} de Factura.com al consultar clientes: ${errText}`
+      );
+    }
+
+    const json = await response.json();
+    return json.data || json.clients || (Array.isArray(json) ? json : []);
+  }
 }
