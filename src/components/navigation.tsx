@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileUp, History, ShieldAlert, Sparkles, ReceiptText } from "lucide-react";
+import { LayoutDashboard, History, ShieldAlert, Sparkles, ReceiptText } from "lucide-react";
 
 export function Navigation() {
   const pathname = usePathname();
 
   const navItems = [
-    { href: "/", label: "Cargar Archivo", icon: FileUp },
+    { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/historial", label: "Historial y Bitácora", icon: History },
   ];
 
