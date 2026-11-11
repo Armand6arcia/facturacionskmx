@@ -112,3 +112,4 @@ describe("FacturaComPacClient", () => {
     expect(result.xmlContent).toContain("TEST_XML_CONTENT");
   });
 });
+

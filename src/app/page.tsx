@@ -98,21 +98,6 @@ export default function DashboardPage() {
     }
   };
 
-  const loadSample = async (filename: string) => {
-    setUploading(true);
-    setUploadError(null);
-    try {
-      const res = await fetch(`/api/sample-file?name=${filename}`);
-      if (!res.ok) throw new Error("No se pudo cargar el archivo demo.");
-      const blob = await res.blob();
-      const sampleFile = new File([blob], filename, { type: "application/vnd.ms-excel" });
-      await processFile(sampleFile);
-    } catch (e: any) {
-      setUploadError(e.message || "Error al cargar demo");
-      setUploading(false);
-    }
-  };
-
   const stats = data?.stats || {
     totalDocumentos: 0,
     totalTimbrados: 0,
@@ -162,13 +147,22 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <button
-          onClick={() => setIsCompanyModalOpen(true)}
-          className="self-start sm:self-center inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
-        >
-          <Settings className="h-3.5 w-3.5" />
-          Configurar Empresa
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          <button
+            onClick={() => document.getElementById("fileInput")?.click()}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-all"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Nueva Factura
+          </button>
+          <button
+            onClick={() => setIsCompanyModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
+          >
+            <Settings className="h-3.5 w-3.5" />
+            Configurar Empresa
+          </button>
+        </div>
       </div>
 
       {/* 2. Top 4 Core Hub Cards */}
@@ -243,33 +237,33 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Documentos */}
+        {/* Facturas */}
         <Link
           href="/historial"
           className="group relative bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-violet-400 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
         >
           <div className="flex items-start justify-between">
             <div className="p-2.5 rounded-xl bg-violet-50 text-violet-600 group-hover:scale-105 transition-transform">
-              <FileText className="h-5 w-5" />
+              <FileCheck className="h-5 w-5" />
             </div>
-            <span className="text-[11px] font-bold text-violet-800 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200">
-              {stats.totalDocumentos} procesados
+            <span className="text-[11px] font-bold text-violet-800 bg-violet-50 px-2.5 py-0.5 rounded-full border border-violet-200">
+              {stats.totalDocumentos} realizadas
             </span>
           </div>
           <div className="mt-4">
             <h3 className="font-bold text-slate-900 text-sm group-hover:text-violet-600 transition-colors flex items-center justify-between">
-              <span>Documentos</span>
+              <span>Facturas</span>
               <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Emisión, timbrados y bitácora de auditoría
+              {stats.totalTimbrados} timbradas • {stats.totalBorradores} en borrador
             </p>
           </div>
         </Link>
       </div>
 
       {/* 3. Operación Principal: Cargar Orden (.xls) & Acceso Rápido */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div id="nueva-factura" className="grid grid-cols-1 lg:grid-cols-3 gap-6 scroll-mt-20">
         {/* Upload Zone (2 cols) */}
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
@@ -281,10 +275,13 @@ export default function DashboardPage() {
                 Sube el archivo de orden interna (formato tabla HTML o Excel binario) para auditar partidas y timbrar.
               </p>
             </div>
-            <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700">
-              <Sparkles className="h-3.5 w-3.5" />
-              Flujo en 2 pasos
-            </span>
+            <button
+              onClick={() => document.getElementById("fileInput")?.click()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-xs transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nueva Factura
+            </button>
           </div>
 
           {uploadError && (
@@ -352,29 +349,6 @@ export default function DashboardPage() {
               </label>
             )}
           </div>
-
-          {/* Demos Quick Links */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t text-xs text-slate-500">
-            <span>Archivos de prueba incluidos:</span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => loadSample("IN00491311.xls")}
-                disabled={uploading}
-                className="font-medium text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
-              >
-                Cargar IN00491311.xls (HTML)
-              </button>
-              <button
-                type="button"
-                onClick={() => loadSample("InvoiceIntg.xls")}
-                disabled={uploading}
-                className="font-medium text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
-              >
-                Cargar InvoiceIntg.xls (Binario)
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Executive Summary Metrics Card (1 col) */}
@@ -434,7 +408,7 @@ export default function DashboardPage() {
             href="/historial"
             className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition-colors"
           >
-            <span>Ver Historial Detallado</span>
+            <span>Ver Historial CFDI</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
@@ -451,7 +425,7 @@ export default function DashboardPage() {
             href="/historial"
             className="text-xs font-semibold text-blue-700 hover:text-blue-900 flex items-center gap-1"
           >
-            Ver todos ({stats.totalDocumentos})
+            Ver Historial CFDI ({stats.totalDocumentos})
             <ChevronRight className="h-3.5 w-3.5" />
           </Link>
         </div>

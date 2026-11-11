@@ -196,12 +196,6 @@ export default function FacturaPage() {
 
       {/* Printable Invoice Container */}
       <div className="relative bg-white rounded-2xl border shadow-md p-8 sm:p-12 overflow-hidden text-slate-800">
-        {/* Prominent Diagonal Watermark */}
-        <div className="pointer-events-none select-none absolute inset-0 flex items-center justify-center opacity-10 rotate-[-30deg] z-0">
-          <span className="text-6xl sm:text-8xl font-black text-red-600 tracking-widest text-center">
-            DEMO – SIN VALIDEZ FISCAL
-          </span>
-        </div>
 
         {/* Cancellation Stamp Banner if cancelled */}
         {isCancelado && (

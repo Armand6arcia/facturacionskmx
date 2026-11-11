@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, History, ShieldAlert, Sparkles, ReceiptText } from "lucide-react";
+import { LayoutDashboard, History, Plus } from "lucide-react";
 
 export function Navigation() {
   const pathname = usePathname();
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/historial", label: "Historial y Bitácora", icon: History },
+    { href: "/historial", label: "Historial CFDI", icon: History },
   ];
 
   return (
@@ -51,10 +51,18 @@ export function Navigation() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-xs font-medium">
-            <ShieldAlert className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
-            <span>DEMO – SIN VALIDEZ FISCAL</span>
-          </div>
+          <Link
+            href="/#nueva-factura"
+            onClick={() => {
+              if (pathname === "/") {
+                document.getElementById("fileInput")?.click();
+              }
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Nueva Factura</span>
+          </Link>
         </div>
       </div>
     </header>

@@ -64,10 +64,10 @@ export default function HistorialPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              Historial de Facturación y Bitácora
+              Historial CFDI
             </h1>
             <p className="text-xs text-slate-500">
-              Control de documentos procesados, CFDI 4.0 timbrados y registro de auditoría.
+              Control de facturas emitidas, comprobantes timbrados y registro de auditoría.
             </p>
           </div>
         </div>
