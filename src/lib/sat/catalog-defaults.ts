@@ -47,3 +47,4 @@ export function getSatMappingForConcepto(sku?: string | null, descripcion?: stri
     descripcion: descripcion || "Producto",
   };
 }
+
