@@ -8,7 +8,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  ShieldCheck,
   AlertCircle,
   ArrowRight,
 } from "lucide-react";
@@ -172,23 +171,6 @@ function LoginForm() {
               </button>
             </div>
           </form>
-
-          {/* Default credentials hint */}
-          <div className="mt-6 pt-5 border-t border-slate-100 bg-slate-50/60 -mx-7 -mb-7 sm:-mx-8 sm:-mb-8 p-4 rounded-b-3xl">
-            <div className="flex items-start gap-2 text-[11px] text-slate-600">
-              <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-semibold text-slate-800">
-                  Credenciales iniciales de administrador:
-                </span>
-                <div className="font-mono text-[11px] text-slate-700 mt-1 flex flex-wrap gap-x-3">
-                  <span>Usuario: <strong className="text-blue-700">admin</strong></span>
-                  <span>•</span>
-                  <span>Clave: <strong className="text-blue-700">Admin123!</strong></span>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
