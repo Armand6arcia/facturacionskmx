@@ -710,7 +710,14 @@ export default function ReviewPage() {
 
                         {/* Tratamiento Promo */}
                         <td className="py-2.5 px-3 align-top text-center">
-                          {isPromo || it.precioUnitario === 0 ? (
+                          {it.precioUnitario === 0 ? (
+                            <span
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200"
+                              title="Excluido automáticamente porque el SAT no admite precio $0 en facturas de ingreso"
+                            >
+                              Excluido ($0)
+                            </span>
+                          ) : isPromo ? (
                             <select
                               value={
                                 it.excluido

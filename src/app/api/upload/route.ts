@@ -217,6 +217,8 @@ export async function POST(req: NextRequest) {
           reference: it.reference,
           barcode: it.barcode,
           pesoKg: it.weightKg,
+          excluido: it.precioUnitario <= 0,
+          descuentoCien: false,
         },
       });
     }

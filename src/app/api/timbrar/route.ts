@@ -100,7 +100,9 @@ export async function POST(req: NextRequest) {
 
     // 3. Preparar payload CFDI 4.0
     const pac = getPacClient();
-    const activeItems = doc.items.filter((i) => !i.excluido);
+    const activeItems = doc.items.filter(
+      (i) => !i.excluido && (doc.tipoFactura === "TRASLADO" || i.precioUnitario > 0)
+    );
 
     // Complemento Carta Porte si aplica
     let cartaPortePayload: any = undefined;

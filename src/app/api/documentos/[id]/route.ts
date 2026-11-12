@@ -22,6 +22,23 @@ export async function GET(
       return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
     }
 
+    // Auto-excluir partidas con precio $0 si el documento es borrador (el SAT no admite precio $0)
+    if (doc.estado !== "TIMBRADO") {
+      const zeroPriceItems = doc.items.filter((i) => i.precioUnitario <= 0 && !i.excluido);
+      if (zeroPriceItems.length > 0) {
+        await prisma.documentoItem.updateMany({
+          where: { id: { in: zeroPriceItems.map((i) => i.id) } },
+          data: { excluido: true, descuentoCien: false },
+        });
+        for (const it of doc.items) {
+          if (it.precioUnitario <= 0) {
+            it.excluido = true;
+            it.descuentoCien = false;
+          }
+        }
+      }
+    }
+
     // Check if another stamped document has same docNumber or fileHash
     const otherStamped = await prisma.documento.findFirst({
       where: {

@@ -197,6 +197,12 @@ export async function ensureTablesExist() {
         WHERE (claveProdServ IS NULL OR claveProdServ = '' OR claveProdServ = '53131600') 
           AND LOWER(sku) NOT LIKE '%delivery%' AND LOWER(descripcion) NOT LIKE '%delivery%' AND LOWER(sku) NOT LIKE '%envio%' AND LOWER(descripcion) NOT LIKE '%envio%';
       `);
+
+      await prisma.$executeRawUnsafe(`
+        UPDATE DocumentoItem 
+        SET excluido = 1, descuentoCien = 0 
+        WHERE precioUnitario <= 0 AND excluido = 0;
+      `);
     } catch (updErr) {
       console.warn("Aviso al actualizar claves SAT por defecto en la BD:", updErr);
     }
