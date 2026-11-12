@@ -2,12 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureTablesExist } from "@/lib/db-init";
 import { hashPassword } from "@/lib/auth-utils";
+import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Valida que la petición provenga de un usuario con sesión activa y rol ADMIN.
+ */
+async function requireAdminSession(req: NextRequest) {
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!token) return null;
+  const user = await verifySessionToken(token);
+  if (!user || user.rol !== "ADMIN") return null;
+  return user;
+}
 
 export async function GET(req: NextRequest) {
   try {
     await ensureTablesExist();
+
+    const admin = await requireAdminSession(req);
+    if (!admin) {
+      return NextResponse.json(
+        { error: "Acceso denegado: solo los usuarios administradores pueden consultar el catálogo de usuarios." },
+        { status: 403 }
+      );
+    }
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q")?.trim() || "";
@@ -49,6 +69,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await ensureTablesExist();
+
+    const admin = await requireAdminSession(req);
+    if (!admin) {
+      return NextResponse.json(
+        { error: "Acceso denegado: solo los administradores pueden registrar nuevos usuarios." },
+        { status: 403 }
+      );
+    }
 
     const body = await req.json();
     const { nombre, usuario, correo, password, rol, activo } = body;
@@ -104,6 +132,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Únicamente se permite ADMIN o FACTURADOR (rol OPERADOR eliminado)
+    const rolAsignado = rol === "ADMIN" ? "ADMIN" : "FACTURADOR";
+
     const hashedPassword = hashPassword(password);
 
     const nuevoUsuario = await prisma.usuario.create({
@@ -112,7 +143,7 @@ export async function POST(req: NextRequest) {
         usuario: cleanUsuario,
         correo: cleanCorreo,
         password: hashedPassword,
-        rol: rol || "ADMIN",
+        rol: rolAsignado,
         activo: activo !== undefined ? Boolean(activo) : true,
       },
       select: {
@@ -139,6 +170,14 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     await ensureTablesExist();
+
+    const admin = await requireAdminSession(req);
+    if (!admin) {
+      return NextResponse.json(
+        { error: "Acceso denegado: solo los administradores pueden editar usuarios." },
+        { status: 403 }
+      );
+    }
 
     const body = await req.json();
     const { id, nombre, usuario, correo, password, rol, activo } = body;
@@ -210,7 +249,8 @@ export async function PUT(req: NextRequest) {
     }
 
     if (rol && typeof rol === "string") {
-      updateData.rol = rol;
+      // Únicamente se permite ADMIN o FACTURADOR (rol OPERADOR eliminado)
+      updateData.rol = rol === "ADMIN" ? "ADMIN" : "FACTURADOR";
     }
 
     if (activo !== undefined) {
@@ -245,6 +285,14 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     await ensureTablesExist();
+
+    const admin = await requireAdminSession(req);
+    if (!admin) {
+      return NextResponse.json(
+        { error: "Acceso denegado: solo los administradores pueden eliminar usuarios." },
+        { status: 403 }
+      );
+    }
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

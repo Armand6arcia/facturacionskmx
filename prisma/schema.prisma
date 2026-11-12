@@ -145,7 +145,7 @@ model Usuario {
   usuario   String?  @unique
   correo    String   @unique
   password  String
-  rol       String   @default("ADMIN") // ADMIN, FACTURADOR, OPERADOR
+  rol       String   @default("ADMIN") // ADMIN, FACTURADOR
   activo    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -58,7 +58,9 @@ export function Navigation() {
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/historial", label: "Historial CFDI", icon: History },
-    { href: "/usuarios", label: "Usuarios", icon: Users },
+    ...(currentUser?.rol === "ADMIN"
+      ? [{ href: "/usuarios", label: "Usuarios", icon: Users }]
+      : []),
   ];
 
   const initials = currentUser?.nombre
@@ -131,8 +133,19 @@ export function Navigation() {
                   {initials}
                 </div>
                 <div className="hidden lg:block text-left">
-                  <div className="text-xs font-bold text-slate-800 leading-tight">
-                    {currentUser.nombre}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-800 leading-tight">
+                      {currentUser.nombre}
+                    </span>
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                        currentUser.rol === "ADMIN"
+                          ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                          : "bg-blue-50 text-blue-700 border-blue-200"
+                      }`}
+                    >
+                      {currentUser.rol === "ADMIN" ? "Admin" : "Facturador"}
+                    </span>
                   </div>
                   <div className="text-[10px] text-slate-400 font-medium">
                     {currentUser.usuario ? `@${currentUser.usuario}` : currentUser.correo}

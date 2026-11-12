@@ -41,6 +41,7 @@ export default function DashboardPage() {
   const [isClientsModalOpen, setIsClientsModalOpen] = useState(false);
   const [isProductsModalOpen, setIsProductsModalOpen] = useState(false);
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Dashboard Data State
   const [data, setData] = useState<any>(null);
@@ -70,6 +71,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((d) => {
+        if (d.authenticated && d.user) setCurrentUser(d.user);
+      })
+      .catch(() => {});
   }, []);
 
   const processFiles = async (fileProd: File, fileEnvio?: File | null) => {
@@ -142,8 +149,12 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
-      {/* Top 5 Core Hub Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Top Core Hub Cards */}
+      <div
+        className={`grid grid-cols-1 sm:grid-cols-2 ${
+          currentUser?.rol === "ADMIN" ? "lg:grid-cols-5" : "lg:grid-cols-4"
+        } gap-4`}
+      >
         {/* Mi Empresa */}
         <div
           onClick={() => setIsCompanyModalOpen(true)}
@@ -238,28 +249,30 @@ export default function DashboardPage() {
           </div>
         </Link>
 
-        {/* Usuarios */}
-        <div
-          onClick={() => setIsUsersModalOpen(true)}
-          className="group relative bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-amber-400 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
-        >
-          <div className="flex items-start justify-between">
-            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 group-hover:scale-105 transition-transform">
-              <UserCog className="h-5 w-5" />
+        {/* Usuarios (Solo administradores) */}
+        {currentUser?.rol === "ADMIN" && (
+          <div
+            onClick={() => setIsUsersModalOpen(true)}
+            className="group relative bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-amber-400 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-start justify-between">
+              <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 group-hover:scale-105 transition-transform">
+                <UserCog className="h-5 w-5" />
+              </div>
+              <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                {stats.totalUsuarios || 0} usuarios
+              </span>
             </div>
-            <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-              {stats.totalUsuarios || 0} usuarios
-            </span>
+            <div className="mt-4">
+              <h3 className="font-bold text-slate-900 text-sm group-hover:text-amber-600 transition-colors">
+                Usuarios
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Accesos y contraseñas
+              </p>
+            </div>
           </div>
-          <div className="mt-4">
-            <h3 className="font-bold text-slate-900 text-sm group-hover:text-amber-600 transition-colors">
-              Usuarios
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Accesos y contraseñas
-            </p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* 3. Operación Principal: Cargar Orden (.xls) & Acceso Rápido */}
@@ -690,11 +703,13 @@ export default function DashboardPage() {
         onClose={() => setIsProductsModalOpen(false)}
       />
 
-      <UsersModal
-        isOpen={isUsersModalOpen}
-        onClose={() => setIsUsersModalOpen(false)}
-        onUpdated={() => fetchDashboardData()}
-      />
+      {currentUser?.rol === "ADMIN" && (
+        <UsersModal
+          isOpen={isUsersModalOpen}
+          onClose={() => setIsUsersModalOpen(false)}
+          onUpdated={() => fetchDashboardData()}
+        />
+      )}
     </div>
   );
 }

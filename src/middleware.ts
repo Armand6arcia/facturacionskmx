@@ -25,6 +25,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Rutas exclusivas para rol ADMIN: Panel de gestión de usuarios
+  if (pathname.startsWith("/usuarios")) {
+    if (sessionUser.rol !== "ADMIN") {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 

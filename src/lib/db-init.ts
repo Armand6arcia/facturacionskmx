@@ -227,6 +227,14 @@ export async function ensureTablesExist() {
           data: { usuario: "admin" },
         });
       } catch {}
+
+      // Migrar cualquier usuario con rol antiguo OPERADOR a FACTURADOR
+      try {
+        await prisma.usuario.updateMany({
+          where: { rol: "OPERADOR" },
+          data: { rol: "FACTURADOR" },
+        });
+      } catch {}
     }
 
     // Actualizar claves SAT por defecto (53131613 para productos, 78101800 para envíos)

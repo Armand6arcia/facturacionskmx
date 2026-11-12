@@ -407,17 +407,11 @@ export function UsersModal({ isOpen, onClose, onUpdated }: UsersModalProps) {
                             className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
                               u.rol === "ADMIN"
                                 ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                : u.rol === "FACTURADOR"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : "bg-slate-100 text-slate-700 border-slate-200"
+                                : "bg-blue-50 text-blue-700 border-blue-200"
                             }`}
                           >
                             <Shield className="h-3 w-3" />
-                            {u.rol === "ADMIN"
-                              ? "Admin"
-                              : u.rol === "FACTURADOR"
-                              ? "Facturador"
-                              : "Operador"}
+                            {u.rol === "ADMIN" ? "Admin" : "Facturador"}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-center">
@@ -641,7 +635,6 @@ export function UsersModal({ isOpen, onClose, onUpdated }: UsersModalProps) {
                   >
                     <option value="ADMIN">Administrador</option>
                     <option value="FACTURADOR">Facturador</option>
-                    <option value="OPERADOR">Operador</option>
                   </select>
                 </div>
                 <div>

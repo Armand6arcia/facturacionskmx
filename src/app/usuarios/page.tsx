@@ -38,6 +38,7 @@ interface UsuarioItem {
 }
 
 export default function UsuariosPage() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [usuarios, setUsuarios] = useState<UsuarioItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -79,7 +80,19 @@ export default function UsuariosPage() {
   };
 
   useEffect(() => {
-    fetchUsuarios();
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((d) => {
+        if (!d.authenticated || d.user?.rol !== "ADMIN") {
+          window.location.href = "/";
+        } else {
+          setCurrentUser(d.user);
+          fetchUsuarios();
+        }
+      })
+      .catch(() => {
+        window.location.href = "/";
+      });
   }, []);
 
   const handleOpenCreate = () => {
@@ -411,17 +424,11 @@ export default function UsuariosPage() {
                           className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
                             u.rol === "ADMIN"
                               ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                              : u.rol === "FACTURADOR"
-                              ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : "bg-slate-100 text-slate-700 border-slate-200"
+                              : "bg-blue-50 text-blue-700 border-blue-200"
                           }`}
                         >
                           <Shield className="h-3 w-3" />
-                          {u.rol === "ADMIN"
-                            ? "Administrador"
-                            : u.rol === "FACTURADOR"
-                            ? "Facturador"
-                            : "Operador"}
+                          {u.rol === "ADMIN" ? "Administrador" : "Facturador"}
                         </span>
                       </td>
                       <td className="py-3.5 px-6 text-center">
@@ -644,7 +651,6 @@ export default function UsuariosPage() {
                   >
                     <option value="ADMIN">Administrador</option>
                     <option value="FACTURADOR">Facturador</option>
-                    <option value="OPERADOR">Operador</option>
                   </select>
                 </div>
                 <div>

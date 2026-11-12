@@ -248,7 +248,6 @@ export function NewUserModal({
               >
                 <option value="ADMIN">Administrador</option>
                 <option value="FACTURADOR">Facturador</option>
-                <option value="OPERADOR">Operador</option>
               </select>
             </div>
             <div>
