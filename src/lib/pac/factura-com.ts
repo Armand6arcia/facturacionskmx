@@ -379,21 +379,33 @@ export class FacturaComPacClient implements PacClient {
       });
 
       // 4. Construir cuerpo JSON para /v4/cfdi40/create
+      const usoCfdiReceptor = (payload.receptor.usoCfdi && payload.receptor.usoCfdi.trim()) || "G03";
+
       const receptorNode: any = receptorUid
-        ? { UID: receptorUid }
+        ? {
+            UID: receptorUid,
+            Rfc: payload.receptor.rfc,
+            Nombre: payload.receptor.nombre,
+            DomicilioFiscalReceptor: payload.receptor.domicilioFiscalReceptor,
+            RegimenFiscalReceptor: payload.receptor.regimenFiscalReceptor,
+            UsoCFDI: usoCfdiReceptor,
+            usocfdi: usoCfdiReceptor,
+          }
         : {
             Rfc: payload.receptor.rfc,
             Nombre: payload.receptor.nombre,
             DomicilioFiscalReceptor: payload.receptor.domicilioFiscalReceptor,
             RegimenFiscalReceptor: payload.receptor.regimenFiscalReceptor,
-            UsoCFDI: payload.receptor.usoCfdi || "G03",
+            UsoCFDI: usoCfdiReceptor,
+            usocfdi: usoCfdiReceptor,
           };
 
       const body: any = {
         Receptor: receptorNode,
         TipoDocumento: tipoDocumento,
         Conceptos: conceptosFactura,
-        UsoCFDI: payload.receptor.usoCfdi || "G03",
+        UsoCFDI: usoCfdiReceptor,
+        usocfdi: usoCfdiReceptor,
         FormaPago: payload.formaPago || "03",
         MetodoPago: payload.metodoPago || "PUE",
         Moneda: payload.moneda || "MXN",

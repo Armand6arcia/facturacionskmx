@@ -151,6 +151,30 @@ export async function ensureTablesExist() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
+    // 8. Tabla Usuario
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS Usuario (
+        id VARCHAR(191) NOT NULL PRIMARY KEY,
+        nombre VARCHAR(191) NOT NULL,
+        usuario VARCHAR(191) NULL UNIQUE,
+        correo VARCHAR(191) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        rol VARCHAR(50) NOT NULL DEFAULT 'ADMIN',
+        activo BOOLEAN NOT NULL DEFAULT TRUE,
+        createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        updatedAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    // Migración retroactiva: agregar columna usuario si no existe
+    try {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE Usuario ADD COLUMN usuario VARCHAR(191) NULL UNIQUE;
+      `);
+    } catch {
+      // Si la columna ya existe, se ignora
+    }
+
     // Sincronizar catálogo inicial si está vacío
     const countProd = await prisma.productoSat.count().catch(() => 0);
     if (countProd === 0) {
@@ -175,6 +199,34 @@ export async function ensureTablesExist() {
       } catch (seedErr) {
         console.warn("Aviso al cargar catálogo inicial SAT:", seedErr);
       }
+    }
+
+    // Sincronizar usuario inicial si la tabla está vacía
+    const countUsers = await prisma.usuario.count().catch(() => 0);
+    if (countUsers === 0) {
+      try {
+        const { hashPassword } = await import("./auth-utils");
+        await prisma.usuario.create({
+          data: {
+            nombre: "Admin StyleKorean",
+            usuario: "admin",
+            correo: "admin@stylekorean.mx",
+            password: hashPassword("Admin123!"),
+            rol: "ADMIN",
+            activo: true,
+          },
+        });
+      } catch (userErr) {
+        console.warn("Aviso al crear usuario inicial:", userErr);
+      }
+    } else {
+      // Si el admin inicial no tiene usuario asignado, asignarle 'admin'
+      try {
+        await prisma.usuario.updateMany({
+          where: { correo: "admin@stylekorean.mx", usuario: null },
+          data: { usuario: "admin" },
+        });
+      } catch {}
     }
 
     // Actualizar claves SAT por defecto (53131613 para productos, 78101800 para envíos)

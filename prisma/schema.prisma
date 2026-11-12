@@ -139,3 +139,16 @@ model BitacoraEvento {
   createdAt   DateTime  @default(now())
 }
 
+model Usuario {
+  id        String   @id @default(cuid())
+  nombre    String
+  usuario   String?  @unique
+  correo    String   @unique
+  password  String
+  rol       String   @default("ADMIN") // ADMIN, FACTURADOR, OPERADOR
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+

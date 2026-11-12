@@ -26,6 +26,7 @@ import {
   Plus,
   FileUp,
   Trash2,
+  Edit2,
 } from "lucide-react";
 import { SkuResolverModal } from "@/components/sku-resolver-modal";
 import { NewClientModal } from "@/components/new-client-modal";
@@ -117,6 +118,7 @@ export default function ReviewPage() {
   const [selectedCliente, setSelectedCliente] = useState<any>(null);
   const [clientSearch, setClientSearch] = useState("");
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [clientToEdit, setClientToEdit] = useState<any | null>(null);
 
   // Payment defaults: DEFAULT 03 - Transferencia electrónica de fondos
   const [formaPago, setFormaPago] = useState("03");
@@ -1050,9 +1052,22 @@ export default function ReviewPage() {
                     <div className="p-4 bg-white border border-blue-200 rounded-xl text-xs space-y-3 shadow-xs">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-sm text-blue-900">{selectedCliente.razonSocial}</span>
-                        <span className="font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">
-                          {selectedCliente.rfc}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">
+                            {selectedCliente.rfc}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setClientToEdit(selectedCliente);
+                              setIsClientModalOpen(true);
+                            }}
+                            title="Editar datos fiscales del cliente"
+                            className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600 pt-2 border-t">
                         <div><b>Código Postal Fiscal:</b> {selectedCliente.codigoPostal}</div>
@@ -1471,15 +1486,27 @@ export default function ReviewPage() {
         }}
       />
 
-      {/* New Client Modal */}
+      {/* New / Edit Client Modal */}
       <NewClientModal
         isOpen={isClientModalOpen}
-        onClose={() => setIsClientModalOpen(false)}
+        onClose={() => {
+          setIsClientModalOpen(false);
+          setClientToEdit(null);
+        }}
+        clientToEdit={clientToEdit}
         onClientCreated={(nc) => {
           setClientes((prev) => [nc, ...prev]);
           setSelectedCliente(nc);
           setClientSearch(nc.razonSocial);
           if (nc.usoCfdiDefault) setUsoCfdi(nc.usoCfdiDefault);
+        }}
+        onClientUpdated={(updatedClient) => {
+          setClientes((prev) =>
+            prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
+          );
+          setSelectedCliente(updatedClient);
+          setClientSearch(updatedClient.razonSocial);
+          if (updatedClient.usoCfdiDefault) setUsoCfdi(updatedClient.usoCfdiDefault);
         }}
       />
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   X,
   Building2,
@@ -10,15 +10,24 @@ import {
   FileText,
   Loader2,
   Sparkles,
+  Edit2,
 } from "lucide-react";
 
 interface NewClientModalProps {
   isOpen: boolean;
   onClose: () => void;
   onClientCreated: (client: any) => void;
+  clientToEdit?: any | null;
+  onClientUpdated?: (client: any) => void;
 }
 
-export function NewClientModal({ isOpen, onClose, onClientCreated }: NewClientModalProps) {
+export function NewClientModal({
+  isOpen,
+  onClose,
+  onClientCreated,
+  clientToEdit,
+  onClientUpdated,
+}: NewClientModalProps) {
   const [rfc, setRfc] = useState("");
   const [razonSocial, setRazonSocial] = useState("");
   const [codigoPostal, setCodigoPostal] = useState("");
@@ -29,6 +38,26 @@ export function NewClientModal({ isOpen, onClose, onClientCreated }: NewClientMo
   const [pdfSuccess, setPdfSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (clientToEdit) {
+      setRfc(clientToEdit.rfc || "");
+      setRazonSocial(clientToEdit.razonSocial || "");
+      setCodigoPostal(clientToEdit.codigoPostal || "");
+      setRegimenFiscal(clientToEdit.regimenFiscal || "601");
+      setUsoCfdi(clientToEdit.usoCfdiDefault || "G03");
+      setPdfSuccess(null);
+      setError(null);
+    } else {
+      setRfc("");
+      setRazonSocial("");
+      setCodigoPostal("");
+      setRegimenFiscal("601");
+      setUsoCfdi("G03");
+      setPdfSuccess(null);
+      setError(null);
+    }
+  }, [isOpen, clientToEdit]);
 
   if (!isOpen) return null;
 
@@ -93,27 +122,52 @@ export function NewClientModal({ isOpen, onClose, onClientCreated }: NewClientMo
     setError(null);
 
     try {
-      const res = await fetch("/api/clientes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rfc: rfc.trim().toUpperCase(),
-          razonSocial: razonSocial.trim().toUpperCase(),
-          codigoPostal: codigoPostal.trim(),
-          regimenFiscal,
-          usoCfdiDefault: usoCfdi,
-        }),
-      });
+      if (clientToEdit) {
+        // Modo Edición: PUT /api/clientes
+        const res = await fetch("/api/clientes", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: clientToEdit.id,
+            rfc: rfc.trim().toUpperCase(),
+            razonSocial: razonSocial.trim().toUpperCase(),
+            codigoPostal: codigoPostal.trim(),
+            regimenFiscal,
+            usoCfdiDefault: usoCfdi,
+          }),
+        });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Error al registrar cliente");
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Error al actualizar cliente");
+        }
+
+        if (onClientUpdated) onClientUpdated(data.cliente);
+        onClose();
+      } else {
+        // Modo Creación: POST /api/clientes
+        const res = await fetch("/api/clientes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rfc: rfc.trim().toUpperCase(),
+            razonSocial: razonSocial.trim().toUpperCase(),
+            codigoPostal: codigoPostal.trim(),
+            regimenFiscal,
+            usoCfdiDefault: usoCfdi,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Error al registrar cliente");
+        }
+
+        onClientCreated(data.cliente);
+        onClose();
       }
-
-      onClientCreated(data.cliente);
-      onClose();
     } catch (err: any) {
-      setError(err.message || "Error al registrar cliente");
+      setError(err.message || "Error al procesar cliente");
     } finally {
       setLoading(false);
     }
@@ -126,7 +180,9 @@ export function NewClientModal({ isOpen, onClose, onClientCreated }: NewClientMo
         <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-blue-600" />
-            <h3 className="font-semibold text-slate-800">Alta de Cliente Fiscal (CFDI 4.0)</h3>
+            <h3 className="font-semibold text-slate-800">
+              {clientToEdit ? "Editar Cliente Fiscal (CFDI 4.0)" : "Alta de Cliente Fiscal (CFDI 4.0)"}
+            </h3>
           </div>
           <button
             onClick={onClose}
@@ -328,7 +384,7 @@ export function NewClientModal({ isOpen, onClose, onClientCreated }: NewClientMo
                 ) : (
                   <>
                     <Check className="h-4 w-4" />
-                    Guardar Cliente
+                    {clientToEdit ? "Actualizar Cliente" : "Guardar Cliente"}
                   </>
                 )}
               </button>

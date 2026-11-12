@@ -15,6 +15,7 @@ export async function GET() {
       totalClientes,
       totalProductos,
       productosSinClave,
+      totalUsuarios,
       ultimosDocs,
     ] = await Promise.all([
       prisma.documento.count(),
@@ -22,6 +23,7 @@ export async function GET() {
       prisma.cliente.count(),
       prisma.productoSat.count(),
       prisma.productoSat.count({ where: { claveProdServ: null } }),
+      prisma.usuario.count().catch(() => 0),
       prisma.documento.findMany({
         take: 5,
         orderBy: { fechaEmision: "desc" },
@@ -69,6 +71,7 @@ export async function GET() {
         totalProductos,
         productosMapeados: totalProductos - productosSinClave,
         productosSinClave,
+        totalUsuarios,
       },
       empresa,
       ultimosDocs: ultimosDocs.map((d) => ({

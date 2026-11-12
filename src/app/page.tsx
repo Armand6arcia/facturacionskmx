@@ -20,18 +20,18 @@ import {
   ExternalLink,
   ChevronRight,
   ShieldCheck,
-  Settings,
-  Plus,
   FileUp,
   Truck,
   FileSpreadsheet,
   Layers,
   X,
+  UserCog,
 } from "lucide-react";
 
 import { CompanyConfigModal } from "@/components/company-config-modal";
 import { ClientsCatalogModal } from "@/components/clients-catalog-modal";
 import { ProductsSatModal } from "@/components/products-sat-modal";
+import { UsersModal } from "@/components/users-modal";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   const [isClientsModalOpen, setIsClientsModalOpen] = useState(false);
   const [isProductsModalOpen, setIsProductsModalOpen] = useState(false);
+  const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
 
   // Dashboard Data State
   const [data, setData] = useState<any>(null);
@@ -129,6 +130,7 @@ export default function DashboardPage() {
     totalProductos: 0,
     productosMapeados: 0,
     productosSinClave: 0,
+    totalUsuarios: 0,
   };
 
   const empresa = data?.empresa || {
@@ -140,55 +142,8 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
-      {/* 1. Header / Empresa Saludo Bar */}
-      <div className="bg-white/80 backdrop-blur-md rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md font-bold text-base shrink-0">
-            SK
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                Emisor CFDI 4.0
-              </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Sistema Activo
-              </span>
-            </div>
-            <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
-              {empresa.razonSocial}
-            </h1>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-0.5">
-              <span>RFC: <b className="font-mono text-slate-700">{empresa.rfc}</b></span>
-              <span>•</span>
-              <span>Régimen: <b className="text-slate-700">{empresa.regimenFiscal} General de Ley</b></span>
-              <span>•</span>
-              <span className="text-blue-700 font-medium">PAC: {empresa.pacProvider === "mock" ? "Simulador Realista" : "Factura.com"}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-center">
-          <button
-            onClick={() => document.getElementById("fileInput")?.click()}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-all"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Nueva Factura
-          </button>
-          <button
-            onClick={() => setIsCompanyModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
-          >
-            <Settings className="h-3.5 w-3.5" />
-            Configurar Empresa
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Top 4 Core Hub Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Top 5 Core Hub Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Mi Empresa */}
         <div
           onClick={() => setIsCompanyModalOpen(true)}
@@ -208,7 +163,7 @@ export default function DashboardPage() {
               Mi Empresa
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Datos fiscales, lugar de expedición y PAC
+              Datos fiscales y PAC
             </p>
           </div>
         </div>
@@ -223,7 +178,7 @@ export default function DashboardPage() {
               <Users className="h-5 w-5" />
             </div>
             <span className="text-[11px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
-              {stats.totalClientes} registrados
+              {stats.totalClientes} reg.
             </span>
           </div>
           <div className="mt-4">
@@ -231,7 +186,7 @@ export default function DashboardPage() {
               Clientes
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Catálogo y alta con Constancia Fiscal PDF
+              Catálogo y alta PDF
             </p>
           </div>
         </div>
@@ -251,10 +206,10 @@ export default function DashboardPage() {
           </div>
           <div className="mt-4">
             <h3 className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">
-              Productos y Servicios
+              Productos y SAT
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Mapeo de Claves SAT y catálogo de cosméticos
+              Mapeo de Claves SAT
             </p>
           </div>
         </div>
@@ -268,8 +223,8 @@ export default function DashboardPage() {
             <div className="p-2.5 rounded-xl bg-violet-50 text-violet-600 group-hover:scale-105 transition-transform">
               <FileCheck className="h-5 w-5" />
             </div>
-            <span className="text-[11px] font-bold text-violet-800 bg-violet-50 px-2.5 py-0.5 rounded-full border border-violet-200">
-              {stats.totalDocumentos} realizadas
+            <span className="text-[11px] font-bold text-violet-800 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200">
+              {stats.totalDocumentos} fact.
             </span>
           </div>
           <div className="mt-4">
@@ -278,10 +233,33 @@ export default function DashboardPage() {
               <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              {stats.totalTimbrados} timbradas • {stats.totalBorradores} en borrador
+              {stats.totalTimbrados} timbradas
             </p>
           </div>
         </Link>
+
+        {/* Usuarios */}
+        <div
+          onClick={() => setIsUsersModalOpen(true)}
+          className="group relative bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-amber-400 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+        >
+          <div className="flex items-start justify-between">
+            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 group-hover:scale-105 transition-transform">
+              <UserCog className="h-5 w-5" />
+            </div>
+            <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+              {stats.totalUsuarios || 0} usuarios
+            </span>
+          </div>
+          <div className="mt-4">
+            <h3 className="font-bold text-slate-900 text-sm group-hover:text-amber-600 transition-colors">
+              Usuarios
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Accesos y contraseñas
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* 3. Operación Principal: Cargar Orden (.xls) & Acceso Rápido */}
@@ -710,6 +688,12 @@ export default function DashboardPage() {
       <ProductsSatModal
         isOpen={isProductsModalOpen}
         onClose={() => setIsProductsModalOpen(false)}
+      />
+
+      <UsersModal
+        isOpen={isUsersModalOpen}
+        onClose={() => setIsUsersModalOpen(false)}
+        onUpdated={() => fetchDashboardData()}
       />
     </div>
   );
