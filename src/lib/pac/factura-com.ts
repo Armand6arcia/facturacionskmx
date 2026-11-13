@@ -19,6 +19,31 @@ import {
   UNIDAD_ENVIO_DEFAULT,
   DESCRIPCION_ENVIO_DEFAULT,
 } from "../sat/catalog-defaults";
+import { limpiarRazonSocialCfdi40 } from "../parsers/csf-parser";
+
+/**
+ * Normaliza el nombre del receptor para CFDI 4.0:
+ * - Remueve acentos de vocales (Á->A, É->E, Í->I, Ó->O, Ú->U) para compatibilidad con la lista LCO del SAT.
+ * - Preserva Ñ y caracteres válidos.
+ * - En Personas Morales (RFC de 12 posiciones), elimina el régimen societario (S.A. DE C.V., etc.).
+ * - Colapsa espacios múltiples y convierte a mayúsculas.
+ */
+export function normalizarNombreCfdi40(nombre: string, rfc?: string): string {
+  if (!nombre) return "";
+  let n = nombre
+    .replace(/[ÁÀÄÂáàäâ]/g, "A")
+    .replace(/[ÉÈËÊéèëê]/g, "E")
+    .replace(/[ÍÌÏÎíìïî]/g, "I")
+    .replace(/[ÓÒÖÔóòöô]/g, "O")
+    .replace(/[ÚÙÜÛúùüû]/g, "U")
+    .trim();
+
+  if (rfc && rfc.trim().length === 12) {
+    n = limpiarRazonSocialCfdi40(n);
+  }
+
+  return n.replace(/\s+/g, " ").toUpperCase();
+}
 
 interface FacturaComResponse {
   ok: boolean;
@@ -171,13 +196,35 @@ export class FacturaComPacClient implements PacClient {
     }
 
     const rfc = payload.receptor.rfc.trim().toUpperCase();
+    const razons = normalizarNombreCfdi40(payload.receptor.nombre, rfc);
+    const emailDefault =
+      process.env.FACTURA_COM_CLIENTE_EMAIL ||
+      process.env.FACTURACOM_CLIENTE_EMAIL ||
+      "facturacion@stylekorean.mx";
 
-    // 1. Buscar por RFC
+    const payloadCliente: any = {
+      rfc,
+      razons,
+      regimen: payload.receptor.regimenFiscalReceptor,
+      usocfdi: payload.receptor.usoCfdi || "G03",
+      codpos: payload.receptor.domicilioFiscalReceptor,
+      email: emailDefault,
+      pais: "MEX",
+    };
+    if (payload.receptor.numRegIdTrib) payloadCliente.numregidtrib = payload.receptor.numRegIdTrib;
+
+    // 1. Buscar por RFC y actualizar para asegurar que tenga los datos más recientes
     try {
       const found = await this.request("GET", `/v1/clients/${encodeURIComponent(rfc)}`);
       if (found.isJson && found.ok && !this.isErrorPayload(found.json)) {
         const uid = this.findKey(found.json, ["UID", "uid"]);
-        if (uid) return String(uid);
+        if (uid) {
+          const uidStr = String(uid);
+          try {
+            await this.request("POST", `/v1/clients/${encodeURIComponent(uidStr)}/update`, payloadCliente);
+          } catch {}
+          return uidStr;
+        }
       }
     } catch {
       /* fallback */
@@ -190,27 +237,20 @@ export class FacturaComPacClient implements PacClient {
         (c: any) => String(c.RFC || c.rfc || c.Rfc || "").trim().toUpperCase() === rfc
       );
       const uid = match ? match.UID || match.uid : undefined;
-      if (uid) return String(uid);
+      if (uid) {
+        const uidStr = String(uid);
+        try {
+          await this.request("POST", `/v1/clients/${encodeURIComponent(uidStr)}/update`, payloadCliente);
+        } catch {}
+        return uidStr;
+      }
     } catch (e) {
       console.warn("[FacturaCom] No se pudo consultar el listado de clientes:", e);
     }
 
     // 3. Intentar registrar al cliente en Factura.com
     try {
-      const nuevo: any = {
-        razons: payload.receptor.nombre,
-        rfc,
-        regimen: payload.receptor.regimenFiscalReceptor,
-        usocfdi: payload.receptor.usoCfdi || "G03",
-        codpos: payload.receptor.domicilioFiscalReceptor,
-        pais: "MEX",
-      };
-      const emailDefault =
-        process.env.FACTURA_COM_CLIENTE_EMAIL || process.env.FACTURACOM_CLIENTE_EMAIL;
-      if (emailDefault) nuevo.email = emailDefault;
-      if (payload.receptor.numRegIdTrib) nuevo.numregidtrib = payload.receptor.numRegIdTrib;
-
-      const created = await this.request("POST", `/v1/clients/create`, nuevo);
+      const created = await this.request("POST", `/v1/clients/create`, payloadCliente);
       if (created.isJson && created.ok && !this.isErrorPayload(created.json)) {
         const uid = this.findKey(created.json, ["UID", "uid"]);
         if (uid) return String(uid);
@@ -220,6 +260,101 @@ export class FacturaComPacClient implements PacClient {
     }
 
     return undefined;
+  }
+
+  /**
+   * Sincroniza un cliente individual con Factura.com (crea si no existe, actualiza si ya existe).
+   */
+  async sincronizarCliente(cliente: {
+    rfc: string;
+    razonSocial: string;
+    codigoPostal: string;
+    regimenFiscal: string;
+    usoCfdi?: string;
+    email?: string;
+    numRegIdTrib?: string | null;
+    pais?: string;
+  }): Promise<{ success: boolean; uid?: string; action: "created" | "updated" | "skipped"; error?: string }> {
+    if (!this.apiKey || !this.secretKey) {
+      return { success: false, action: "skipped", error: "Credenciales de Factura.com no configuradas." };
+    }
+
+    const rfc = (cliente.rfc || "").trim().toUpperCase();
+    if (!rfc) {
+      return { success: false, action: "skipped", error: "RFC requerido." };
+    }
+
+    const razons = normalizarNombreCfdi40(cliente.razonSocial, rfc);
+    const codpos = String(cliente.codigoPostal || "06600").trim();
+    const regimen = String(cliente.regimenFiscal || (rfc.length === 12 ? "601" : "612")).trim();
+    const usocfdi = String(cliente.usoCfdi || "G03").trim();
+    const email =
+      (cliente.email && cliente.email.trim()) ||
+      process.env.FACTURA_COM_CLIENTE_EMAIL ||
+      process.env.FACTURACOM_CLIENTE_EMAIL ||
+      "facturacion@stylekorean.mx";
+
+    const payloadCliente: any = {
+      rfc,
+      razons,
+      codpos,
+      regimen,
+      usocfdi,
+      email,
+      pais: cliente.pais || "MEX",
+    };
+    if (cliente.numRegIdTrib) payloadCliente.numregidtrib = cliente.numRegIdTrib;
+
+    // Buscar si ya existe por RFC
+    let existingUid: string | undefined;
+    try {
+      const found = await this.request("GET", `/v1/clients/${encodeURIComponent(rfc)}`);
+      if (found.isJson && found.ok && !this.isErrorPayload(found.json)) {
+        const u = this.findKey(found.json, ["UID", "uid"]);
+        if (u) existingUid = String(u);
+      }
+    } catch {}
+
+    if (!existingUid) {
+      try {
+        const lista = await this.obtenerClientes();
+        const match = lista.find(
+          (c: any) => String(c.RFC || c.rfc || c.Rfc || "").trim().toUpperCase() === rfc
+        );
+        if (match) existingUid = String(match.UID || match.uid);
+      } catch {}
+    }
+
+    // Si ya existe, actualizarlo con los datos más recientes
+    if (existingUid) {
+      try {
+        const updateRes = await this.request(
+          "POST",
+          `/v1/clients/${encodeURIComponent(existingUid)}/update`,
+          payloadCliente
+        );
+        if (updateRes.isJson && updateRes.ok && !this.isErrorPayload(updateRes.json)) {
+          return { success: true, uid: existingUid, action: "updated" };
+        }
+      } catch (err: any) {
+        console.warn(`[FacturaCom] Falló actualización de cliente ${rfc}:`, err?.message);
+      }
+      return { success: true, uid: existingUid, action: "updated" };
+    }
+
+    // Si no existe, registrarlo nuevo en Factura.com
+    try {
+      const createRes = await this.request("POST", `/v1/clients/create`, payloadCliente);
+      if (createRes.isJson && createRes.ok && !this.isErrorPayload(createRes.json)) {
+        const newUid = this.findKey(createRes.json, ["UID", "uid"]);
+        return { success: true, uid: newUid ? String(newUid) : undefined, action: "created" };
+      } else {
+        const errMsg = this.extractErrorMessage(createRes.json, `Error ${createRes.status}`);
+        return { success: false, action: "skipped", error: errMsg };
+      }
+    } catch (err: any) {
+      return { success: false, action: "skipped", error: err?.message || "Error al crear cliente en Factura.com" };
+    }
   }
 
   /**
@@ -381,11 +516,13 @@ export class FacturaComPacClient implements PacClient {
       // 4. Construir cuerpo JSON para /v4/cfdi40/create
       const usoCfdiReceptor = (payload.receptor.usoCfdi && payload.receptor.usoCfdi.trim()) || "G03";
 
+      const nombreNormalizado = normalizarNombreCfdi40(payload.receptor.nombre, payload.receptor.rfc);
+
       const receptorNode: any = receptorUid
         ? {
             UID: receptorUid,
             Rfc: payload.receptor.rfc,
-            Nombre: payload.receptor.nombre,
+            Nombre: nombreNormalizado,
             DomicilioFiscalReceptor: payload.receptor.domicilioFiscalReceptor,
             RegimenFiscalReceptor: payload.receptor.regimenFiscalReceptor,
             UsoCFDI: usoCfdiReceptor,
@@ -393,7 +530,7 @@ export class FacturaComPacClient implements PacClient {
           }
         : {
             Rfc: payload.receptor.rfc,
-            Nombre: payload.receptor.nombre,
+            Nombre: nombreNormalizado,
             DomicilioFiscalReceptor: payload.receptor.domicilioFiscalReceptor,
             RegimenFiscalReceptor: payload.receptor.regimenFiscalReceptor,
             UsoCFDI: usoCfdiReceptor,

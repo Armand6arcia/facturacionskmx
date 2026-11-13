@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
+  UploadCloud,
 } from "lucide-react";
 import { NewClientModal } from "./new-client-modal";
 
@@ -39,6 +40,7 @@ export function ClientsCatalogModal({
 
   // Sync state
   const [syncing, setSyncing] = useState(false);
+  const [pushing, setPushing] = useState(false);
   const [syncResult, setSyncResult] = useState<{
     success: boolean;
     message: string;
@@ -82,12 +84,12 @@ export function ClientsCatalogModal({
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        throw new Error(data.error || "Error al sincronizar con Factura.com");
+        throw new Error(data.error || "Error al importar desde Factura.com");
       }
 
       setSyncResult({
         success: true,
-        message: data.mensaje || "Clientes sincronizados con éxito.",
+        message: data.mensaje || "Clientes importados con éxito.",
       });
 
       await fetchClientes();
@@ -99,6 +101,37 @@ export function ClientsCatalogModal({
       });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handlePushFacturaCom = async () => {
+    setPushing(true);
+    setSyncResult(null);
+
+    try {
+      const res = await fetch("/api/clientes/push-facturacom", {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Error al enviar clientes a Factura.com");
+      }
+
+      setSyncResult({
+        success: true,
+        message: data.mensaje || "Base de datos sincronizada con Factura.com con éxito.",
+      });
+
+      await fetchClientes();
+      if (onClientUpdated) onClientUpdated();
+    } catch (err: any) {
+      setSyncResult({
+        success: false,
+        message: err.message || "Error al conectar con Factura.com.",
+      });
+    } finally {
+      setPushing(false);
     }
   };
 
@@ -241,15 +274,25 @@ export function ClientsCatalogModal({
               />
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={handlePushFacturaCom}
+                disabled={pushing || syncing}
+                title="Enviar y actualizar todos los clientes de tu sistema a Factura.com"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 border border-blue-200 hover:border-blue-400 bg-blue-50/70 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold shadow-xs transition-all disabled:opacity-50"
+              >
+                <UploadCloud className={`h-3.5 w-3.5 ${pushing ? "animate-bounce text-blue-600" : ""}`} />
+                <span>{pushing ? "Enviando..." : "Enviar BD a Factura.com"}</span>
+              </button>
+
               <button
                 onClick={handleSyncFacturaCom}
-                disabled={syncing}
+                disabled={syncing || pushing}
                 title="Descargar clientes registrados en tu cuenta de Factura.com"
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:border-blue-400 bg-white hover:bg-blue-50/50 text-slate-700 hover:text-blue-700 rounded-xl text-xs font-semibold shadow-xs transition-all disabled:opacity-50"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold shadow-xs transition-all disabled:opacity-50"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin text-blue-600" : ""}`} />
-                <span>{syncing ? "Sincronizando..." : "Sincronizar Factura.com"}</span>
+                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin text-slate-600" : ""}`} />
+                <span>{syncing ? "Importando..." : "Importar de Factura.com"}</span>
               </button>
 
               <button

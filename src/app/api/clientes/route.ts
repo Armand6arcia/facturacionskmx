@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureTablesExist } from "@/lib/db-init";
+import { FacturaComPacClient, normalizarNombreCfdi40 } from "@/lib/pac/factura-com";
 
 export const dynamic = "force-dynamic";
 
@@ -42,12 +43,13 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanRfc = rfc.trim().toUpperCase();
+    const cleanRazonSocial = normalizarNombreCfdi40(razonSocial, cleanRfc);
     const cleanUso = (usoCfdiDefault && usoCfdiDefault.trim().toUpperCase()) || "G03";
 
     const nuevoCliente = await prisma.cliente.upsert({
       where: { rfc: cleanRfc },
       update: {
-        razonSocial: razonSocial.trim().toUpperCase(),
+        razonSocial: cleanRazonSocial,
         codigoPostal: codigoPostal.trim(),
         regimenFiscal: regimenFiscal.trim(),
         usoCfdiDefault: cleanUso,
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
       },
       create: {
         rfc: cleanRfc,
-        razonSocial: razonSocial.trim().toUpperCase(),
+        razonSocial: cleanRazonSocial,
         codigoPostal: codigoPostal.trim(),
         regimenFiscal: regimenFiscal.trim(),
         usoCfdiDefault: cleanUso,
@@ -65,7 +67,29 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, cliente: nuevoCliente });
+    // Sincronizar automáticamente en tiempo real con Factura.com
+    let syncResult: any = { success: false, action: "skipped" };
+    try {
+      const pac = new FacturaComPacClient();
+      syncResult = await pac.sincronizarCliente({
+        rfc: cleanRfc,
+        razonSocial: cleanRazonSocial,
+        codigoPostal: codigoPostal.trim(),
+        regimenFiscal: regimenFiscal.trim(),
+        usoCfdi: cleanUso,
+        pais: pais || "MEX",
+      });
+    } catch (e: any) {
+      console.warn("[Clientes] No se pudo sincronizar automáticamente con Factura.com:", e?.message);
+    }
+
+    return NextResponse.json({
+      success: true,
+      cliente: nuevoCliente,
+      syncedFacturaCom: syncResult.success,
+      facturaComAction: syncResult.action,
+      facturaComError: syncResult.error,
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Error al registrar cliente" }, { status: 500 });
   }
@@ -97,7 +121,10 @@ export async function PUT(req: NextRequest) {
     }
 
     const cleanRfc = rfc ? rfc.trim().toUpperCase() : clienteExistente.rfc;
-    const cleanRazonSocial = razonSocial ? razonSocial.trim().toUpperCase() : clienteExistente.razonSocial;
+    const cleanRazonSocial = normalizarNombreCfdi40(
+      razonSocial ? razonSocial.trim() : clienteExistente.razonSocial,
+      cleanRfc
+    );
     const cleanCp = codigoPostal ? codigoPostal.trim() : clienteExistente.codigoPostal;
     const cleanRegimen = regimenFiscal ? regimenFiscal.trim() : clienteExistente.regimenFiscal;
     const cleanUsoCfdi = usoCfdiDefault ? usoCfdiDefault.trim().toUpperCase() : (clienteExistente.usoCfdiDefault || "G03");
@@ -143,7 +170,29 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, cliente: clienteActualizado });
+    // Sincronizar automáticamente en tiempo real con Factura.com
+    let syncResult: any = { success: false, action: "skipped" };
+    try {
+      const pac = new FacturaComPacClient();
+      syncResult = await pac.sincronizarCliente({
+        rfc: cleanRfc,
+        razonSocial: cleanRazonSocial,
+        codigoPostal: cleanCp,
+        regimenFiscal: cleanRegimen,
+        usoCfdi: cleanUsoCfdi,
+        pais: pais || clienteExistente.pais || "MEX",
+      });
+    } catch (e: any) {
+      console.warn("[Clientes] No se pudo sincronizar actualización con Factura.com:", e?.message);
+    }
+
+    return NextResponse.json({
+      success: true,
+      cliente: clienteActualizado,
+      syncedFacturaCom: syncResult.success,
+      facturaComAction: syncResult.action,
+      facturaComError: syncResult.error,
+    });
   } catch (error: any) {
     console.error("Error al actualizar cliente:", error);
     return NextResponse.json(

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { FacturaComPacClient } from "../lib/pac/factura-com";
+import { FacturaComPacClient, normalizarNombreCfdi40 } from "../lib/pac/factura-com";
 import { CfdiPayload } from "../lib/pac/pac-interface";
 
 describe("FacturaComPacClient", () => {
@@ -244,6 +244,23 @@ describe("FacturaComPacClient", () => {
     expect(capturedBody.Conceptos[1].ClaveProdServ).toBe("78101800");
     expect(capturedBody.Conceptos[1].ClaveUnidad).toBe("E48");
     expect(capturedBody.Conceptos[1].Unidad).toBe("Servicio");
+  });
+
+  describe("normalizarNombreCfdi40", () => {
+    it("elimina acentos de vocales pero preserva la letra Ñ", () => {
+      expect(normalizarNombreCfdi40("JOSÉ MARÍA LÓPEZ HERNÁNDEZ", "LOHJ800101XYZ")).toBe(
+        "JOSE MARIA LOPEZ HERNANDEZ"
+      );
+      expect(normalizarNombreCfdi40("ÁNGEL MUÑOZ PEÑA", "MUPA900202ABC")).toBe(
+        "ANGEL MUÑOZ PEÑA"
+      );
+    });
+
+    it("elimina régimen societario para Personas Morales (RFC 12 caracteres)", () => {
+      expect(normalizarNombreCfdi40("STYLE KOREAN MÉXICO S.A. DE C.V.", "SKM220101ABC")).toBe(
+        "STYLE KOREAN MEXICO"
+      );
+    });
   });
 });
 
