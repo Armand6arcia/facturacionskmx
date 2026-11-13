@@ -187,6 +187,36 @@ export class FacturaComPacClient implements PacClient {
   }
 
   /**
+   * Busca un cliente en Factura.com específicamente por su RFC.
+   * Utiliza las rutas directas /v1/clients/rfc/{RFC} o /v1/clients/{RFC}.
+   * NUNCA descarga el catálogo completo para evitar demoras innecesarias.
+   */
+  async buscarClientePorRfc(rfc: string): Promise<string | undefined> {
+    const cleanRfc = rfc.trim().toUpperCase();
+    if (!cleanRfc) return undefined;
+
+    // 1. Endpoint oficial específico por RFC
+    try {
+      const res = await this.request("GET", `/v1/clients/rfc/${encodeURIComponent(cleanRfc)}`);
+      if (res.isJson && res.ok && !this.isErrorPayload(res.json)) {
+        const uid = this.findKey(res.json, ["UID", "uid"]);
+        if (uid) return String(uid);
+      }
+    } catch {}
+
+    // 2. Endpoint alternativo /v1/clients/{RFC}
+    try {
+      const res = await this.request("GET", `/v1/clients/${encodeURIComponent(cleanRfc)}`);
+      if (res.isJson && res.ok && !this.isErrorPayload(res.json)) {
+        const uid = this.findKey(res.json, ["UID", "uid"]);
+        if (uid) return String(uid);
+      }
+    } catch {}
+
+    return undefined;
+  }
+
+  /**
    * Obtiene (o registra) el cliente en Factura.com y devuelve su UID.
    * Factura.com v4 admite Receptor.UID de un cliente existente o datos completos de receptor.
    */
@@ -213,42 +243,16 @@ export class FacturaComPacClient implements PacClient {
     };
     if (payload.receptor.numRegIdTrib) payloadCliente.numregidtrib = payload.receptor.numRegIdTrib;
 
-    // 1. Buscar por RFC y actualizar para asegurar que tenga los datos más recientes
-    try {
-      const found = await this.request("GET", `/v1/clients/${encodeURIComponent(rfc)}`);
-      if (found.isJson && found.ok && !this.isErrorPayload(found.json)) {
-        const uid = this.findKey(found.json, ["UID", "uid"]);
-        if (uid) {
-          const uidStr = String(uid);
-          try {
-            await this.request("POST", `/v1/clients/${encodeURIComponent(uidStr)}/update`, payloadCliente);
-          } catch {}
-          return uidStr;
-        }
-      }
-    } catch {
-      /* fallback */
+    // 1. Buscar únicamente por RFC específico
+    const existingUid = await this.buscarClientePorRfc(rfc);
+    if (existingUid) {
+      try {
+        await this.request("POST", `/v1/clients/${encodeURIComponent(existingUid)}/update`, payloadCliente);
+      } catch {}
+      return existingUid;
     }
 
-    // 2. Buscar en el listado completo (algunas cuentas no exponen búsqueda por RFC)
-    try {
-      const lista = await this.obtenerClientes();
-      const match = lista.find(
-        (c: any) => String(c.RFC || c.rfc || c.Rfc || "").trim().toUpperCase() === rfc
-      );
-      const uid = match ? match.UID || match.uid : undefined;
-      if (uid) {
-        const uidStr = String(uid);
-        try {
-          await this.request("POST", `/v1/clients/${encodeURIComponent(uidStr)}/update`, payloadCliente);
-        } catch {}
-        return uidStr;
-      }
-    } catch (e) {
-      console.warn("[FacturaCom] No se pudo consultar el listado de clientes:", e);
-    }
-
-    // 3. Intentar registrar al cliente en Factura.com
+    // 2. Intentar registrar al cliente en Factura.com directamente
     try {
       const created = await this.request("POST", `/v1/clients/create`, payloadCliente);
       if (created.isJson && created.ok && !this.isErrorPayload(created.json)) {
@@ -305,27 +309,10 @@ export class FacturaComPacClient implements PacClient {
     };
     if (cliente.numRegIdTrib) payloadCliente.numregidtrib = cliente.numRegIdTrib;
 
-    // Buscar si ya existe por RFC
-    let existingUid: string | undefined;
-    try {
-      const found = await this.request("GET", `/v1/clients/${encodeURIComponent(rfc)}`);
-      if (found.isJson && found.ok && !this.isErrorPayload(found.json)) {
-        const u = this.findKey(found.json, ["UID", "uid"]);
-        if (u) existingUid = String(u);
-      }
-    } catch {}
+    // 1. Buscar únicamente por su RFC puntual (sin descargar el catálogo completo)
+    const existingUid = await this.buscarClientePorRfc(rfc);
 
-    if (!existingUid) {
-      try {
-        const lista = await this.obtenerClientes();
-        const match = lista.find(
-          (c: any) => String(c.RFC || c.rfc || c.Rfc || "").trim().toUpperCase() === rfc
-        );
-        if (match) existingUid = String(match.UID || match.uid);
-      } catch {}
-    }
-
-    // Si ya existe, actualizarlo con los datos más recientes
+    // 2. Si ya existe, actualizarlo puntualmente con los datos más recientes
     if (existingUid) {
       try {
         const updateRes = await this.request(
@@ -342,13 +329,21 @@ export class FacturaComPacClient implements PacClient {
       return { success: true, uid: existingUid, action: "updated" };
     }
 
-    // Si no existe, registrarlo nuevo en Factura.com
+    // 3. Si no existe, registrarlo nuevo en Factura.com
     try {
       const createRes = await this.request("POST", `/v1/clients/create`, payloadCliente);
       if (createRes.isJson && createRes.ok && !this.isErrorPayload(createRes.json)) {
         const newUid = this.findKey(createRes.json, ["UID", "uid"]);
         return { success: true, uid: newUid ? String(newUid) : undefined, action: "created" };
       } else {
+        // En caso de que Factura.com indique que el RFC ya existía, reintentar obtener su UID directo
+        const retryUid = await this.buscarClientePorRfc(rfc);
+        if (retryUid) {
+          try {
+            await this.request("POST", `/v1/clients/${encodeURIComponent(retryUid)}/update`, payloadCliente);
+          } catch {}
+          return { success: true, uid: retryUid, action: "updated" };
+        }
         const errMsg = this.extractErrorMessage(createRes.json, `Error ${createRes.status}`);
         return { success: false, action: "skipped", error: errMsg };
       }

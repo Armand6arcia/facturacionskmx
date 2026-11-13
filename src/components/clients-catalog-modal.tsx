@@ -413,7 +413,7 @@ export function ClientsCatalogModal({
           setClientes((prev) => [newClient, ...prev]);
           setActionMessage({
             type: "success",
-            text: `Cliente "${newClient.razonSocial}" registrado correctamente.`,
+            text: `Cliente "${newClient.razonSocial}" guardado y sincronizado con Factura.com.`,
           });
           if (onClientUpdated) onClientUpdated();
         }}
@@ -423,7 +423,7 @@ export function ClientsCatalogModal({
           );
           setActionMessage({
             type: "success",
-            text: `Cliente "${updatedClient.razonSocial}" actualizado correctamente.`,
+            text: `Cliente "${updatedClient.razonSocial}" actualizado y sincronizado con Factura.com.`,
           });
           if (onClientUpdated) onClientUpdated();
         }}
