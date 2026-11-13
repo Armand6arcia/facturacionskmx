@@ -246,6 +246,72 @@ describe("FacturaComPacClient", () => {
     expect(capturedBody.Conceptos[1].Unidad).toBe("Servicio");
   });
 
+  it("incluye nodo InformacionGlobal obligatorio y datos SAT para Factura al Público en General (XAXX010101000)", async () => {
+    process.env.FACTURA_COM_API_KEY = "test_api_key";
+    process.env.FACTURA_COM_SECRET_KEY = "test_secret_key";
+    process.env.FACTURA_COM_SANDBOX = "true";
+
+    let capturedBody: any = null;
+    const mockFetch = vi.fn().mockImplementation(async (url: string, init?: any) => {
+      if (url.includes("/v4/cfdi40/create")) {
+        capturedBody = JSON.parse(init.body);
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              response: "success",
+              data: {
+                UUID: "CFDI-GLOBAL-UUID-1234-5678",
+                FechaTimbrado: "2026-11-13T12:00:00",
+              },
+            }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ response: "success", data: [] }),
+      };
+    });
+
+    global.fetch = mockFetch;
+
+    const payloadGlobal: CfdiPayload = {
+      ...mockPayload,
+      receptor: {
+        rfc: "XAXX010101000",
+        nombre: "PUBLICO EN GENERAL",
+        domicilioFiscalReceptor: "54090",
+        regimenFiscalReceptor: "616",
+        usoCfdi: "S01",
+      },
+      informacionGlobal: {
+        periodicidad: "01",
+        meses: "11",
+        año: 2026,
+      },
+    };
+
+    const client = new FacturaComPacClient();
+    const result = await client.timbrar(payloadGlobal);
+
+    expect(result.success).toBe(true);
+    expect(capturedBody).not.toBeNull();
+    expect(capturedBody.InformacionGlobal).toBeDefined();
+    expect(capturedBody.InformacionGlobal.Periodicidad).toBe("01");
+    expect(capturedBody.InformacionGlobal.Meses).toBe("11");
+    expect(capturedBody.InformacionGlobal.Año).toBe(2026);
+
+    // Receptor validado para Público en General
+    expect(capturedBody.Receptor.Rfc).toBe("XAXX010101000");
+    expect(capturedBody.Receptor.Nombre).toBe("PUBLICO EN GENERAL");
+    expect(capturedBody.Receptor.RegimenFiscalReceptor).toBe("616");
+    expect(capturedBody.Receptor.UsoCFDI).toBe("S01");
+    expect(capturedBody.Receptor.DomicilioFiscalReceptor).toBe("06600");
+    expect(capturedBody.Receptor.UID).toBeUndefined();
+  });
+
   describe("normalizarNombreCfdi40", () => {
     it("elimina acentos de vocales pero preserva la letra Ñ", () => {
       expect(normalizarNombreCfdi40("JOSÉ MARÍA LÓPEZ HERNÁNDEZ", "LOHJ800101XYZ")).toBe(

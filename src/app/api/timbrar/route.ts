@@ -144,6 +144,52 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Información Global si aplica (Público en General / Factura Global CFDI 4.0)
+    const isPublicoGeneral =
+      doc.tipoFactura === "GLOBAL_NACIONAL" ||
+      (doc.rfcReceptor && doc.rfcReceptor.trim().toUpperCase() === "XAXX010101000") ||
+      (doc.nombreReceptor && doc.nombreReceptor.toUpperCase().includes("PUBLICO EN GENERAL"));
+
+    let informacionGlobalPayload: any = undefined;
+    if (isPublicoGeneral) {
+      let parsedInfo: any = {};
+      if (doc.infoGlobal) {
+        try {
+          parsedInfo = typeof doc.infoGlobal === "string" ? JSON.parse(doc.infoGlobal) : doc.infoGlobal;
+        } catch (err) {
+          console.warn("No se pudo parsear infoGlobal:", err);
+        }
+      }
+
+      const fechaDoc = doc.fechaEmision ? new Date(doc.fechaEmision) : new Date();
+      const mesActual = String(fechaDoc.getMonth() + 1).padStart(2, "0");
+      const anioActual = fechaDoc.getFullYear();
+
+      informacionGlobalPayload = {
+        periodicidad: String(parsedInfo.periodicidad || "01"),
+        meses: String(parsedInfo.meses || mesActual).padStart(2, "0"),
+        año: Number(parsedInfo.año || parsedInfo.anio || anioActual),
+      };
+    }
+
+    const emisorCp = process.env.EMISOR_CP || "54090";
+
+    const receptorPayload = isPublicoGeneral
+      ? {
+          rfc: "XAXX010101000",
+          nombre: "PUBLICO EN GENERAL",
+          domicilioFiscalReceptor: emisorCp, // En CFDI 4.0 para XAXX010101000 el CP debe ser el de expedición
+          regimenFiscalReceptor: "616",     // CFDI 4.0 exige 616 (Sin obligaciones fiscales)
+          usoCfdi: "S01",                   // CFDI 4.0 exige S01 (Sin efectos fiscales)
+        }
+      : {
+          rfc: doc.rfcReceptor || doc.cliente?.rfc || "XAXX010101000",
+          nombre: doc.nombreReceptor || doc.cliente?.razonSocial || "PUBLICO EN GENERAL",
+          domicilioFiscalReceptor: doc.cpReceptor || doc.cliente?.codigoPostal || emisorCp,
+          regimenFiscalReceptor: doc.regimenReceptor || doc.cliente?.regimenFiscal || "616",
+          usoCfdi: doc.usoCfdi || doc.cliente?.usoCfdiDefault || "G03",
+        };
+
     const payload: CfdiPayload = {
       serie: doc.serie,
       folio: doc.folio,
@@ -155,7 +201,7 @@ export async function POST(req: NextRequest) {
       moneda: "MXN",
       tipoDeComprobante: doc.tipoFactura === "TRASLADO" ? "T" : "I",
       exportacion: doc.tipoFactura === "GLOBAL_EXTRANJERO" ? "02" : "01",
-      lugarExpedicion: process.env.EMISOR_CP || "54090",
+      lugarExpedicion: emisorCp,
       subtotal: doc.subtotal,
       total: doc.total,
       totalIva: doc.iva,
@@ -164,13 +210,8 @@ export async function POST(req: NextRequest) {
         nombre: process.env.EMISOR_NOMBRE || "STYLEKOREAN MX",
         regimenFiscal: process.env.EMISOR_REGIMEN || "601",
       },
-      receptor: {
-        rfc: doc.rfcReceptor || doc.cliente?.rfc || "XAXX010101000",
-        nombre: doc.nombreReceptor || doc.cliente?.razonSocial || "PUBLICO EN GENERAL",
-        domicilioFiscalReceptor: doc.cpReceptor || doc.cliente?.codigoPostal || "06600",
-        regimenFiscalReceptor: doc.regimenReceptor || doc.cliente?.regimenFiscal || "616",
-        usoCfdi: doc.usoCfdi || doc.cliente?.usoCfdiDefault || "G03",
-      },
+      receptor: receptorPayload,
+      informacionGlobal: informacionGlobalPayload,
       conceptos: activeItems.map((i) => {
         const isEnvio = isDeliveryFeeItem(i.sku, i.descripcion, i.claveProdServ, i.claveUnidad);
         return {

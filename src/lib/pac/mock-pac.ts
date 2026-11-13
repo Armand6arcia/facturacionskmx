@@ -141,9 +141,22 @@ export class MockPacClient implements PacClient {
   </cfdi:Complemento>`;
     }
 
+    let infoGlobalXml = "";
+    const esPublicoGeneral =
+      payload.receptor.rfc.trim().toUpperCase() === "XAXX010101000" ||
+      payload.receptor.nombre.toUpperCase().includes("PUBLICO EN GENERAL");
+
+    if (payload.informacionGlobal || esPublicoGeneral) {
+      const fecha = payload.fecha ? new Date(payload.fecha) : new Date();
+      const mes = payload.informacionGlobal?.meses || String(fecha.getMonth() + 1).padStart(2, "0");
+      const anio = payload.informacionGlobal?.año || fecha.getFullYear();
+      const periodicidad = payload.informacionGlobal?.periodicidad || "01";
+      infoGlobalXml = `\n  <cfdi:InformacionGlobal Periodicidad="${periodicidad}" Meses="${mes}" Año="${anio}" />`;
+    }
+
     return `<?xml version="1.0" encoding="UTF-8"?>
 <!-- DEMO – SIN VALIDEZ FISCAL - GENERADO POR FACTURA SKMX -->
-<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:cartaporte31="http://www.sat.gob.mx/CartaPorte31" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd" Version="4.0" Serie="${payload.serie}" Folio="${payload.folio}" Fecha="${payload.fecha}" Sello="${stamp.selloCfd}" FormaPago="${payload.formaPago}" NoCertificado="${this.fakeCertificadoEmisor}" SubTotal="${payload.subtotal.toFixed(2)}" Moneda="${payload.moneda}" Total="${payload.total.toFixed(2)}" TipoDeComprobante="${payload.tipoDeComprobante}" Exportacion="${payload.exportacion}" MetodoPago="${payload.metodoPago}" LugarExpedicion="${payload.lugarExpedicion}">
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:cartaporte31="http://www.sat.gob.mx/CartaPorte31" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd" Version="4.0" Serie="${payload.serie}" Folio="${payload.folio}" Fecha="${payload.fecha}" Sello="${stamp.selloCfd}" FormaPago="${payload.formaPago}" NoCertificado="${this.fakeCertificadoEmisor}" SubTotal="${payload.subtotal.toFixed(2)}" Moneda="${payload.moneda}" Total="${payload.total.toFixed(2)}" TipoDeComprobante="${payload.tipoDeComprobante}" Exportacion="${payload.exportacion}" MetodoPago="${payload.metodoPago}" LugarExpedicion="${payload.lugarExpedicion}">${infoGlobalXml}
   <cfdi:Emisor Rfc="${payload.emisor.rfc}" Nombre="${payload.emisor.nombre}" RegimenFiscal="${payload.emisor.regimenFiscal}" />
   <cfdi:Receptor Rfc="${payload.receptor.rfc}" Nombre="${payload.receptor.nombre}" DomicilioFiscalReceptor="${payload.receptor.domicilioFiscalReceptor}" RegimenFiscalReceptor="${payload.receptor.regimenFiscalReceptor}" UsoCFDI="${payload.receptor.usoCfdi}" ${payload.receptor.numRegIdTrib ? `NumRegIdTrib="${payload.receptor.numRegIdTrib}"` : ""} ${payload.receptor.residenciaFiscal ? `ResidenciaFiscal="${payload.receptor.residenciaFiscal}"` : ""}/>
   <cfdi:Conceptos>

@@ -226,6 +226,12 @@ export class FacturaComPacClient implements PacClient {
     }
 
     const rfc = payload.receptor.rfc.trim().toUpperCase();
+
+    // RFCs genéricos (Público en General / Extranjero) no requieren ni deben buscar UID en Factura.com
+    if (rfc === "XAXX010101000" || rfc === "XEXX010101000") {
+      return undefined;
+    }
+
     const razons = normalizarNombreCfdi40(payload.receptor.nombre, rfc);
     const emailDefault =
       process.env.FACTURA_COM_CLIENTE_EMAIL ||
@@ -509,14 +515,23 @@ export class FacturaComPacClient implements PacClient {
       });
 
       // 4. Construir cuerpo JSON para /v4/cfdi40/create
-      const usoCfdiReceptor = (payload.receptor.usoCfdi && payload.receptor.usoCfdi.trim()) || "G03";
+      const rfcReceptor = (payload.receptor.rfc || "").trim().toUpperCase();
+      const esPublicoGeneral =
+        rfcReceptor === "XAXX010101000" ||
+        (payload.receptor.nombre && payload.receptor.nombre.toUpperCase().includes("PUBLICO EN GENERAL"));
 
-      const nombreNormalizado = normalizarNombreCfdi40(payload.receptor.nombre, payload.receptor.rfc);
+      const usoCfdiReceptor = esPublicoGeneral
+        ? "S01"
+        : (payload.receptor.usoCfdi && payload.receptor.usoCfdi.trim()) || "G03";
 
-      const receptorNode: any = receptorUid
+      const nombreNormalizado = esPublicoGeneral
+        ? "PUBLICO EN GENERAL"
+        : normalizarNombreCfdi40(payload.receptor.nombre, rfcReceptor);
+
+      const receptorNode: any = (receptorUid && !esPublicoGeneral)
         ? {
             UID: receptorUid,
-            Rfc: payload.receptor.rfc,
+            Rfc: rfcReceptor,
             Nombre: nombreNormalizado,
             DomicilioFiscalReceptor: payload.receptor.domicilioFiscalReceptor,
             RegimenFiscalReceptor: payload.receptor.regimenFiscalReceptor,
@@ -524,10 +539,13 @@ export class FacturaComPacClient implements PacClient {
             usocfdi: usoCfdiReceptor,
           }
         : {
-            Rfc: payload.receptor.rfc,
+            Rfc: esPublicoGeneral ? "XAXX010101000" : rfcReceptor,
             Nombre: nombreNormalizado,
-            DomicilioFiscalReceptor: payload.receptor.domicilioFiscalReceptor,
-            RegimenFiscalReceptor: payload.receptor.regimenFiscalReceptor,
+            DomicilioFiscalReceptor: esPublicoGeneral
+              ? (payload.lugarExpedicion || "54090")
+              : payload.receptor.domicilioFiscalReceptor,
+            RegimenFiscalReceptor: esPublicoGeneral ? "616" : payload.receptor.regimenFiscalReceptor,
+            RegimenFiscal: esPublicoGeneral ? "616" : payload.receptor.regimenFiscalReceptor,
             UsoCFDI: usoCfdiReceptor,
             usocfdi: usoCfdiReceptor,
           };
@@ -555,12 +573,23 @@ export class FacturaComPacClient implements PacClient {
         body.NumOrder = String(orderNum).trim().slice(0, 30);
       }
 
-      // Información global si aplica (ventas al público en general)
-      if (payload.informacionGlobal) {
+      // Información Global obligatoria para ventas al público en general (CFDI 4.0 - Regla CFDI40130)
+      if (payload.informacionGlobal || esPublicoGeneral) {
+        const fechaDoc = payload.fecha ? new Date(payload.fecha) : new Date();
+        const mesDefecto = String(fechaDoc.getMonth() + 1).padStart(2, "0");
+        const anioDefecto = fechaDoc.getFullYear();
+
+        const info = payload.informacionGlobal || {
+          periodicidad: "01",
+          meses: mesDefecto,
+          año: anioDefecto,
+        };
+
         body.InformacionGlobal = {
-          Periodicidad: payload.informacionGlobal.periodicidad,
-          Meses: payload.informacionGlobal.meses,
-          "Año": payload.informacionGlobal.año,
+          Periodicidad: String(info.periodicidad || "01"),
+          Meses: String(info.meses || mesDefecto).padStart(2, "0"),
+          "Año": Number(info.año || anioDefecto),
+          Anio: Number(info.año || anioDefecto),
         };
       }
 
