@@ -309,7 +309,78 @@ describe("FacturaComPacClient", () => {
     expect(capturedBody.Receptor.RegimenFiscalReceptor).toBe("616");
     expect(capturedBody.Receptor.UsoCFDI).toBe("S01");
     expect(capturedBody.Receptor.DomicilioFiscalReceptor).toBe("06600");
-    expect(capturedBody.Receptor.UID).toBeUndefined();
+  });
+
+  it("resuelve y envía el UID del cliente de Factura.com para Público en General", async () => {
+    process.env.FACTURA_COM_API_KEY = "test_api_key";
+    process.env.FACTURA_COM_SECRET_KEY = "test_secret_key";
+    process.env.FACTURA_COM_SANDBOX = "true";
+
+    let capturedBody: any = null;
+    const mockFetch = vi.fn().mockImplementation(async (url: string, init?: any) => {
+      if (url.includes("/v1/clients/rfc/XAXX010101000") || url.includes("/v1/clients/XAXX010101000")) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              response: "success",
+              data: {
+                UID: "pg-client-uid-12345",
+                rfc: "XAXX010101000",
+                razons: "PUBLICO EN GENERAL",
+              },
+            }),
+        };
+      }
+      if (url.includes("/v4/cfdi40/create")) {
+        capturedBody = JSON.parse(init.body);
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              response: "success",
+              data: {
+                UUID: "CFDI-GLOBAL-UUID-1234-5678",
+                FechaTimbrado: "2026-11-13T12:00:00",
+              },
+            }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ response: "success", data: [] }),
+      };
+    });
+
+    global.fetch = mockFetch;
+
+    const payloadGlobal: CfdiPayload = {
+      ...mockPayload,
+      receptor: {
+        rfc: "XAXX010101000",
+        nombre: "PUBLICO EN GENERAL",
+        domicilioFiscalReceptor: "54090",
+        regimenFiscalReceptor: "616",
+        usoCfdi: "S01",
+      },
+      informacionGlobal: {
+        periodicidad: "01",
+        meses: "11",
+        año: 2026,
+      },
+    };
+
+    const client = new FacturaComPacClient();
+    const result = await client.timbrar(payloadGlobal);
+
+    expect(result.success).toBe(true);
+    expect(capturedBody).not.toBeNull();
+    expect(capturedBody.Receptor.UID).toBe("pg-client-uid-12345");
+    expect(capturedBody.Receptor.Rfc).toBe("XAXX010101000");
+    expect(capturedBody.Receptor.Nombre).toBe("PUBLICO EN GENERAL");
   });
 
   describe("normalizarNombreCfdi40", () => {

@@ -188,14 +188,14 @@ export class FacturaComPacClient implements PacClient {
 
   /**
    * Busca un cliente en Factura.com específicamente por su RFC.
-   * Utiliza las rutas directas /v1/clients/rfc/{RFC} o /v1/clients/{RFC}.
-   * NUNCA descarga el catálogo completo para evitar demoras innecesarias.
+   * Utiliza las rutas directas /v1/clients/rfc/{RFC}, /v1/clients/{RFC},
+   * filtrado por query parameter, o búsqueda en catálogo.
    */
   async buscarClientePorRfc(rfc: string): Promise<string | undefined> {
     const cleanRfc = rfc.trim().toUpperCase();
     if (!cleanRfc) return undefined;
 
-    // 1. Endpoint oficial específico por RFC
+    // 1. Endpoint oficial específico por RFC /v1/clients/rfc/{RFC}
     try {
       const res = await this.request("GET", `/v1/clients/rfc/${encodeURIComponent(cleanRfc)}`);
       if (res.isJson && res.ok && !this.isErrorPayload(res.json)) {
@@ -213,55 +213,114 @@ export class FacturaComPacClient implements PacClient {
       }
     } catch {}
 
+    // 3. Endpoint alternativo con query string /v1/clients?rfc={RFC}
+    try {
+      const res = await this.request("GET", `/v1/clients?rfc=${encodeURIComponent(cleanRfc)}`);
+      if (res.isJson && res.ok && !this.isErrorPayload(res.json)) {
+        const uid = this.findKey(res.json, ["UID", "uid"]);
+        if (uid) return String(uid);
+      }
+    } catch {}
+
+    // 4. Búsqueda directa en catálogo /v1/clients
+    try {
+      const res = await this.request("GET", `/v1/clients`);
+      if (res.isJson && res.ok && !this.isErrorPayload(res.json)) {
+        const list = Array.isArray(res.json?.data)
+          ? res.json.data
+          : Array.isArray(res.json?.Data)
+          ? res.json.Data
+          : Array.isArray(res.json)
+          ? res.json
+          : [];
+        const match = list.find((c: any) => {
+          const cRfc = String(c.rfc ?? c.Rfc ?? c.RFC ?? "").trim().toUpperCase();
+          if (cRfc === cleanRfc) return true;
+          if (cleanRfc === "XAXX010101000") {
+            const cName = String(c.razons ?? c.razon_social ?? c.nombre ?? c.Nombre ?? "").toUpperCase();
+            if (cName.includes("PUBLICO EN GENERAL")) return true;
+          }
+          return false;
+        });
+        if (match) {
+          const uid = this.findKey(match, ["UID", "uid"]);
+          if (uid) return String(uid);
+        }
+      }
+    } catch {}
+
     return undefined;
   }
 
   /**
    * Obtiene (o registra) el cliente en Factura.com y devuelve su UID.
-   * Factura.com v4 admite Receptor.UID de un cliente existente o datos completos de receptor.
+   * Factura.com v4 exige Receptor.UID para vincular la factura al cliente en su catálogo,
+   * incluyendo facturas a Público en General (XAXX010101000).
    */
   private async resolverReceptorUid(payload: CfdiPayload): Promise<string | undefined> {
     if (payload.receptor.uid) {
       return payload.receptor.uid;
     }
 
-    const rfc = payload.receptor.rfc.trim().toUpperCase();
+    const rfc = (payload.receptor.rfc || "").trim().toUpperCase() || "XAXX010101000";
+    const esPublicoGeneral =
+      rfc === "XAXX010101000" ||
+      (payload.receptor.nombre && payload.receptor.nombre.toUpperCase().includes("PUBLICO EN GENERAL"));
 
-    // RFCs genéricos (Público en General / Extranjero) no requieren ni deben buscar UID en Factura.com
-    if (rfc === "XAXX010101000" || rfc === "XEXX010101000") {
-      return undefined;
+    // Variable de entorno directa para Público en General si está configurada
+    const envPublicoUid =
+      process.env.FACTURA_COM_PUBLICO_GENERAL_UID ||
+      process.env.FACTURACOM_PUBLICO_GENERAL_UID;
+    if (esPublicoGeneral && envPublicoUid) {
+      return envPublicoUid;
     }
 
-    const razons = normalizarNombreCfdi40(payload.receptor.nombre, rfc);
+    const razons = esPublicoGeneral
+      ? "PUBLICO EN GENERAL"
+      : normalizarNombreCfdi40(payload.receptor.nombre, rfc);
+
     const emailDefault =
       process.env.FACTURA_COM_CLIENTE_EMAIL ||
       process.env.FACTURACOM_CLIENTE_EMAIL ||
       "facturacion@stylekorean.mx";
 
+    const codpos = esPublicoGeneral
+      ? (payload.lugarExpedicion || payload.receptor.domicilioFiscalReceptor || "54090")
+      : (payload.receptor.domicilioFiscalReceptor || payload.lugarExpedicion || "54090");
+
+    const regimen = esPublicoGeneral ? "616" : (payload.receptor.regimenFiscalReceptor || "616");
+    const usocfdi = esPublicoGeneral ? "S01" : (payload.receptor.usoCfdi || "G03");
+
     const payloadCliente: any = {
       rfc,
       razons,
-      regimen: payload.receptor.regimenFiscalReceptor,
-      usocfdi: payload.receptor.usoCfdi || "G03",
-      codpos: payload.receptor.domicilioFiscalReceptor,
+      regimen,
+      usocfdi,
+      codpos,
       email: emailDefault,
-      pais: "MEX",
+      pais: rfc === "XEXX010101000" ? (payload.receptor.pais || "USA") : "MEX",
     };
     if (payload.receptor.numRegIdTrib) payloadCliente.numregidtrib = payload.receptor.numRegIdTrib;
 
-    // 1. Buscar únicamente por RFC específico
+    // 1. Buscar únicamente por RFC específico en Factura.com
     const existingUid = await this.buscarClientePorRfc(rfc);
     if (existingUid) {
-      try {
-        await this.request("POST", `/v1/clients/${encodeURIComponent(existingUid)}/update`, payloadCliente);
-      } catch {}
+      // Para clientes normales podemos sincronizar datos recientes; para público en general ya está listo
+      if (!esPublicoGeneral) {
+        try {
+          await this.request("POST", `/v1/clients/${encodeURIComponent(existingUid)}/update`, payloadCliente);
+        } catch {}
+      }
       return existingUid;
     }
 
-    // 2. Intentar registrar al cliente en Factura.com directamente
+    // 2. Intentar registrar al cliente en Factura.com directamente si aún no existía
     try {
       const created = await this.request("POST", `/v1/clients/create`, payloadCliente);
       if (created.isJson && created.ok && !this.isErrorPayload(created.json)) {
+        const uid = this.findKey(created.json, ["UID", "uid"]);
+        if (uid) return String(uid);
+      } else if (created.isJson) {
         const uid = this.findKey(created.json, ["UID", "uid"]);
         if (uid) return String(uid);
       }
@@ -528,13 +587,16 @@ export class FacturaComPacClient implements PacClient {
         ? "PUBLICO EN GENERAL"
         : normalizarNombreCfdi40(payload.receptor.nombre, rfcReceptor);
 
-      const receptorNode: any = (receptorUid && !esPublicoGeneral)
+      const receptorNode: any = receptorUid
         ? {
             UID: receptorUid,
-            Rfc: rfcReceptor,
+            Rfc: esPublicoGeneral ? "XAXX010101000" : rfcReceptor,
             Nombre: nombreNormalizado,
-            DomicilioFiscalReceptor: payload.receptor.domicilioFiscalReceptor,
-            RegimenFiscalReceptor: payload.receptor.regimenFiscalReceptor,
+            DomicilioFiscalReceptor: esPublicoGeneral
+              ? (payload.lugarExpedicion || "54090")
+              : payload.receptor.domicilioFiscalReceptor,
+            RegimenFiscalReceptor: esPublicoGeneral ? "616" : payload.receptor.regimenFiscalReceptor,
+            RegimenFiscal: esPublicoGeneral ? "616" : payload.receptor.regimenFiscalReceptor,
             UsoCFDI: usoCfdiReceptor,
             usocfdi: usoCfdiReceptor,
           }

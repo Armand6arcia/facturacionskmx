@@ -31,6 +31,7 @@ export interface PacReceptor {
   usoCfdi: string;
   numRegIdTrib?: string;
   residenciaFiscal?: string;
+  pais?: string;
 }
 
 export interface CartaPorteUbicacion {
