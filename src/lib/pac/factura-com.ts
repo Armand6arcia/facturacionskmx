@@ -305,12 +305,6 @@ export class FacturaComPacClient implements PacClient {
     // 1. Buscar únicamente por RFC específico en Factura.com
     const existingUid = await this.buscarClientePorRfc(rfc);
     if (existingUid) {
-      // Para clientes normales podemos sincronizar datos recientes; para público en general ya está listo
-      if (!esPublicoGeneral) {
-        try {
-          await this.request("POST", `/v1/clients/${encodeURIComponent(existingUid)}/update`, payloadCliente);
-        } catch {}
-      }
       return existingUid;
     }
 

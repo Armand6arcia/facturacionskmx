@@ -183,10 +183,10 @@ export async function POST(req: NextRequest) {
           usoCfdi: "S01",                   // CFDI 4.0 exige S01 (Sin efectos fiscales)
         }
       : {
-          rfc: doc.rfcReceptor || doc.cliente?.rfc || "XAXX010101000",
-          nombre: doc.nombreReceptor || doc.cliente?.razonSocial || "PUBLICO EN GENERAL",
-          domicilioFiscalReceptor: doc.cpReceptor || doc.cliente?.codigoPostal || emisorCp,
-          regimenFiscalReceptor: doc.regimenReceptor || doc.cliente?.regimenFiscal || "616",
+          rfc: doc.cliente?.rfc || doc.rfcReceptor || "XAXX010101000",
+          nombre: doc.cliente?.razonSocial || doc.nombreReceptor || "PUBLICO EN GENERAL",
+          domicilioFiscalReceptor: doc.cliente?.codigoPostal || doc.cpReceptor || emisorCp,
+          regimenFiscalReceptor: doc.cliente?.regimenFiscal || doc.regimenReceptor || "616",
           usoCfdi: doc.usoCfdi || doc.cliente?.usoCfdiDefault || "G03",
         };
 

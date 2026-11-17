@@ -297,7 +297,13 @@ export default function ReviewPage() {
       clienteId: tipoFactura === "CLIENTE" && selectedCliente ? selectedCliente.id : null,
     };
 
-    if (tipoFactura === "GLOBAL_NACIONAL") {
+    if (tipoFactura === "CLIENTE" && selectedCliente) {
+      patchBody.rfcReceptor = selectedCliente.rfc;
+      patchBody.nombreReceptor = selectedCliente.razonSocial;
+      patchBody.regimenReceptor = selectedCliente.regimenFiscal;
+      patchBody.cpReceptor = selectedCliente.codigoPostal;
+      patchBody.usoCfdi = usoCfdi || selectedCliente.usoCfdiDefault || "G03";
+    } else if (tipoFactura === "GLOBAL_NACIONAL") {
       patchBody.rfcReceptor = "XAXX010101000";
       patchBody.nombreReceptor = "PUBLICO EN GENERAL";
       patchBody.regimenReceptor = "616";
