@@ -61,13 +61,14 @@ export async function POST(req: NextRequest) {
         razonSocial = razonSocial.toUpperCase();
       }
 
-      const codigoPostal = String(
+      const incomingCp = String(
         raw.codpos ||
         raw.codigo_postal ||
         raw.postal_code ||
         raw.cp ||
-        "06600"
+        ""
       ).trim();
+      const codigoPostal = incomingCp || "06600";
 
       const regimenFiscal = String(
         raw.regimen ||
@@ -97,11 +98,17 @@ export async function POST(req: NextRequest) {
 
       try {
         if (existente) {
+          // Preservar código postal si el cliente ya tiene uno corregido (distinto a 06600)
+          const cpFinal =
+            existente.codigoPostal && existente.codigoPostal !== "06600"
+              ? existente.codigoPostal
+              : (incomingCp || existente.codigoPostal || "06600");
+
           await prisma.cliente.update({
             where: { id: existente.id },
             data: {
               razonSocial: razonSocial || existente.razonSocial,
-              codigoPostal: codigoPostal || existente.codigoPostal,
+              codigoPostal: cpFinal,
               regimenFiscal: regimenFiscal || existente.regimenFiscal,
               usoCfdiDefault: usoCfdiDefault || existente.usoCfdiDefault,
               email: existente.email || rawEmail,
@@ -133,11 +140,16 @@ export async function POST(req: NextRequest) {
             where: { rfc },
           });
           if (fallbackExistente) {
+            const fallbackCp =
+              fallbackExistente.codigoPostal && fallbackExistente.codigoPostal !== "06600"
+                ? fallbackExistente.codigoPostal
+                : (incomingCp || fallbackExistente.codigoPostal || "06600");
+
             await prisma.cliente.update({
               where: { id: fallbackExistente.id },
               data: {
                 razonSocial: razonSocial || fallbackExistente.razonSocial,
-                codigoPostal: codigoPostal || fallbackExistente.codigoPostal,
+                codigoPostal: fallbackCp,
                 regimenFiscal: regimenFiscal || fallbackExistente.regimenFiscal,
                 usoCfdiDefault: usoCfdiDefault || fallbackExistente.usoCfdiDefault,
                 email: fallbackExistente.email || rawEmail,
