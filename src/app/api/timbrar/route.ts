@@ -151,11 +151,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Información Global si aplica (Público en General / Factura Global CFDI 4.0)
+    // Determinar si es público general extranjero o nacional
+    const isExtranjero =
+      doc.tipoFactura === "GLOBAL_EXTRANJERO" ||
+      (doc.rfcReceptor && doc.rfcReceptor.trim().toUpperCase() === "XEXX010101000");
+
+    // Información Global si aplica (ÚNICAMENTE Público en General Nacional XAXX010101000 / Factura Global CFDI 4.0)
     const isPublicoGeneral =
-      doc.tipoFactura === "GLOBAL_NACIONAL" ||
-      (doc.rfcReceptor && doc.rfcReceptor.trim().toUpperCase() === "XAXX010101000") ||
-      (doc.nombreReceptor && doc.nombreReceptor.toUpperCase().includes("PUBLICO EN GENERAL"));
+      !isExtranjero &&
+      (doc.tipoFactura === "GLOBAL_NACIONAL" ||
+        (doc.rfcReceptor && doc.rfcReceptor.trim().toUpperCase() === "XAXX010101000") ||
+        (doc.nombreReceptor && doc.nombreReceptor.toUpperCase().trim() === "PUBLICO EN GENERAL"));
 
     let informacionGlobalPayload: any = undefined;
     if (isPublicoGeneral) {
@@ -184,7 +190,15 @@ export async function POST(req: NextRequest) {
     const emisorRegimen = (empresa?.regimenFiscal || process.env.EMISOR_REGIMEN || "601").trim();
     const emisorCp = (empresa?.codigoPostal || process.env.EMISOR_CP || "54090").trim();
 
-    const receptorPayload = isPublicoGeneral
+    const receptorPayload = isExtranjero
+      ? {
+          rfc: "XEXX010101000",
+          nombre: "Venta al público en general extranjero",
+          domicilioFiscalReceptor: emisorCp, // En CFDI 4.0 para XEXX010101000 el CP debe ser el de expedición
+          regimenFiscalReceptor: "616",     // CFDI 4.0 exige 616 (Sin obligaciones fiscales)
+          usoCfdi: "S01",                   // CFDI 4.0 exige S01 (Sin efectos fiscales)
+        }
+      : isPublicoGeneral
       ? {
           rfc: "XAXX010101000",
           nombre: "PUBLICO EN GENERAL",
@@ -210,7 +224,7 @@ export async function POST(req: NextRequest) {
       metodoPago: doc.metodoPago,
       moneda: "MXN",
       tipoDeComprobante: doc.tipoFactura === "TRASLADO" ? "T" : "I",
-      exportacion: doc.tipoFactura === "GLOBAL_EXTRANJERO" ? "02" : "01",
+      exportacion: "01",
       lugarExpedicion: emisorCp,
       subtotal: doc.subtotal,
       total: doc.total,

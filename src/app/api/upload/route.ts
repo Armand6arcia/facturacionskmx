@@ -141,9 +141,9 @@ export async function POST(req: NextRequest) {
       usoCfdi = "S01";
     } else if (tipoFactura === "GLOBAL_EXTRANJERO") {
       rfcReceptor = "XEXX010101000";
-      nombreReceptor = "PUBLICO GENERAL EXTRANJERO";
+      nombreReceptor = "Venta al público en general extranjero";
       regimenReceptor = "616";
-      cpReceptor = process.env.EMISOR_CP || "54090";
+      cpReceptor = targetEmpresa?.codigoPostal || process.env.EMISOR_CP || "54090";
       usoCfdi = "S01";
     }
 

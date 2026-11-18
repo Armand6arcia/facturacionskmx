@@ -312,11 +312,11 @@ export default function ReviewPage() {
       patchBody.infoGlobal = { periodicidad, meses: mesGlobal, año: Number(añoGlobal) };
     } else if (tipoFactura === "GLOBAL_EXTRANJERO") {
       patchBody.rfcReceptor = "XEXX010101000";
-      patchBody.nombreReceptor = "PUBLICO GENERAL EXTRANJERO";
+      patchBody.nombreReceptor = "Venta al público en general extranjero";
       patchBody.regimenReceptor = "616";
-      patchBody.cpReceptor = "54090";
+      patchBody.cpReceptor = documento?.empresa?.codigoPostal || "54090";
       patchBody.usoCfdi = "S01";
-      patchBody.datosExtranjero = { pais: paisResidencia, numRegIdTrib, tipoExportacion, ivaCero };
+      patchBody.datosExtranjero = null;
     } else if (tipoFactura === "TRASLADO") {
       patchBody.datosCartaPorte = {
         origen: origenCP,
@@ -1169,44 +1169,44 @@ export default function ReviewPage() {
 
               {/* 3. PUBLICO GENERAL EXTRANJERO */}
               {tipoFactura === "GLOBAL_EXTRANJERO" && (
-                <div className="space-y-3">
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 space-y-1">
-                    <div className="font-bold flex items-center gap-1.5">
-                      <AlertTriangle className="h-4 w-4 text-amber-600" />
-                      Aviso fiscal para cliente extranjero
+                <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-3 text-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="font-bold text-sm text-emerald-950">
+                        Venta al público en general extranjero
+                      </span>
+                    </div>
+                    <span className="font-mono font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded self-start sm:self-auto">
+                      RFC: XEXX010101000
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600 pt-2 border-t border-emerald-200/60">
+                    <div>
+                      <b>Domicilio Fiscal (C.P.):</b>{" "}
+                      <span className="font-semibold text-slate-800">
+                        {documento?.empresa?.codigoPostal || "54090"}
+                      </span>{" "}
+                      <span className="text-[11px] text-slate-500">(Lugar de expedición)</span>
                     </div>
                     <div>
-                      RFC genérico: <span className="font-mono font-semibold">XEXX010101000</span>. Puede requerir complemento de comercio exterior si aplica exportación definitiva.
+                      <b>Régimen Fiscal:</b>{" "}
+                      <span className="font-semibold text-slate-800">616 - Sin obligaciones fiscales</span>
+                    </div>
+                    <div>
+                      <b>Uso de CFDI:</b>{" "}
+                      <span className="font-semibold text-slate-800">S01 - Sin efectos fiscales</span>
+                    </div>
+                    <div>
+                      <b>Exportación:</b>{" "}
+                      <span className="font-semibold text-slate-800">01 - No aplica</span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">País de residencia fiscal</label>
-                      <select
-                        value={paisResidencia}
-                        onChange={(e) => setPaisResidencia(e.target.value)}
-                        className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white"
-                      >
-                        <option value="USA">USA - Estados Unidos</option>
-                        <option value="CAN">CAN - Canadá</option>
-                        <option value="KOR">KOR - Corea del Sur</option>
-                        <option value="COL">COL - Colombia</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Tax ID / No. Registro Tributario (opcional)
-                      </label>
-                      <input
-                        type="text"
-                        value={numRegIdTrib}
-                        onChange={(e) => setNumRegIdTrib(e.target.value)}
-                        placeholder="ej. US123456789"
-                        className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white font-mono"
-                      />
-                    </div>
+                  <div className="pt-2 border-t border-emerald-200/60 flex items-center gap-2 text-[11px] text-emerald-800 font-medium">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Configuración fiscal verificada conforme al SAT. Listo para facturar en 1 clic.</span>
                   </div>
                 </div>
               )}
@@ -1389,7 +1389,7 @@ export default function ReviewPage() {
                       : tipoFactura === "GLOBAL_NACIONAL"
                       ? "PUBLICO EN GENERAL"
                       : tipoFactura === "GLOBAL_EXTRANJERO"
-                      ? "PUBLICO GENERAL EXTRANJERO"
+                      ? "Venta al público en general extranjero"
                       : "CFDI DE TRASLADO"}
                   </span>
                   {selectedCliente && (

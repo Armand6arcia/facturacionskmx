@@ -210,16 +210,8 @@ export function checkDocumentAlerts(input: CheckAlertsInput): DocumentAlert[] {
     });
   }
 
-  // 11. Aviso especial para cliente extranjero
-  if (input.tipoFactura === "GLOBAL_EXTRANJERO") {
-    alerts.push({
-      id: "FOREIGN_TRADE_NOTICE",
-      severity: "YELLOW",
-      titulo: "Aviso de Comercio Exterior",
-      mensaje: "Facturación para cliente extranjero: Puede requerir complemento de comercio exterior si la mercancía sale del país de forma definitiva (validar con agente aduanal / contador).",
-      bloqueaTimbrado: false,
-    });
-  }
+  // 11. Aviso especial para cliente extranjero (sin alerta bloqueante)
+  // Facturación simplificada conforme a SAT / Factura.com (Exportación 01 - No aplica)
 
   return alerts;
 }

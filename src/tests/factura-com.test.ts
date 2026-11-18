@@ -410,6 +410,105 @@ describe("FacturaComPacClient", () => {
     expect(capturedBody.Receptor.Nombre).toBe("PUBLICO EN GENERAL");
   });
 
+  it("emite CFDI 4.0 para Público General Extranjero (XEXX010101000) con exportacion 01 y sin nodo InformacionGlobal", async () => {
+    process.env.FACTURA_COM_API_KEY = "test_api_key";
+    process.env.FACTURA_COM_SECRET_KEY = "test_secret_key";
+    process.env.FACTURA_COM_SANDBOX = "true";
+
+    let capturedBody: any = null;
+    const mockFetch = vi.fn().mockImplementation(async (url: string, init?: any) => {
+      if (url.includes("/v1/clients/rfc/XEXX010101000") || url.includes("/v1/clients/XEXX010101000")) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              response: "success",
+              data: {
+                UID: "uid-extranjero-12345",
+                rfc: "XEXX010101000",
+                razons: "Venta al público en general extranjero",
+              },
+            }),
+        };
+      }
+      if (url.includes("/v4/cfdi40/create")) {
+        capturedBody = JSON.parse(init.body);
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              response: "success",
+              data: {
+                UUID: "mock-extranjero-uuid-12345",
+                Folio: "772",
+                Serie: "F",
+              },
+            }),
+        };
+      }
+      return { ok: true, status: 200, text: async () => JSON.stringify({ data: [] }) };
+    });
+
+    global.fetch = mockFetch as any;
+
+    const payloadExtranjero: CfdiPayload = {
+      serie: "F",
+      folio: 772,
+      docNumber: "IN00493046",
+      numOrder: "IN00493046",
+      fecha: "2026-11-12T10:22:28",
+      formaPago: "03",
+      metodoPago: "PUE",
+      moneda: "MXN",
+      tipoDeComprobante: "I",
+      exportacion: "01",
+      lugarExpedicion: "54090",
+      subtotal: 2133.92,
+      total: 2475.35,
+      totalIva: 341.43,
+      emisor: {
+        rfc: "SMX250408I48",
+        nombre: "STYLEKOREAN MX",
+        regimenFiscal: "601",
+      },
+      receptor: {
+        rfc: "XEXX010101000",
+        nombre: "Venta al público en general extranjero",
+        domicilioFiscalReceptor: "54090",
+        regimenFiscalReceptor: "616",
+        usoCfdi: "S01",
+      },
+      conceptos: [
+        {
+          claveProdServ: "78101800",
+          claveUnidad: "E48",
+          unidad: "Servicio de envío",
+          descripcion: "Servicio de envío",
+          cantidad: 1,
+          valorUnitario: 2133.92,
+          importe: 2133.92,
+          iva: 341.43,
+        },
+      ],
+    };
+
+    const client = new FacturaComPacClient();
+    const result = await client.timbrar(payloadExtranjero);
+
+    expect(result.success).toBe(true);
+    expect(capturedBody).not.toBeNull();
+    expect(capturedBody.Exportacion).toBe("01");
+    expect(capturedBody.LugarExpedicion).toBe("54090");
+    expect(capturedBody.InformacionGlobal).toBeUndefined();
+    expect(capturedBody.Receptor.Rfc).toBe("XEXX010101000");
+    expect(capturedBody.Receptor.Nombre).toBe("Venta al público en general extranjero");
+    expect(capturedBody.Receptor.DomicilioFiscalReceptor).toBe("54090");
+    expect(capturedBody.Receptor.RegimenFiscalReceptor).toBe("616");
+    expect(capturedBody.Receptor.UsoCFDI).toBe("S01");
+  });
+
   describe("sincronizarCliente y protección de email", () => {
     beforeEach(() => {
       process.env.FACTURA_COM_API_KEY = "test_api_key";

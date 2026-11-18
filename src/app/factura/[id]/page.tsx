@@ -331,9 +331,9 @@ export default function FacturaPage() {
               <div className="flex justify-between">
                 <span className="font-bold text-[#183661]">Lugar de Expedición:</span>
                 <span>
-                  54090{" "}
+                  {documento.empresa?.codigoPostal || "54090"}{" "}
                   <span className="font-bold text-[#183661] ml-2">Exportación:</span>{" "}
-                  {documento.tipoFactura === "GLOBAL_EXTRANJERO" ? "02 - Definitiva" : "No aplica"}
+                  No aplica
                 </span>
               </div>
               <div className="flex justify-between">

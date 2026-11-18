@@ -274,9 +274,11 @@ export class FacturaComPacClient implements PacClient {
     }
 
     const rfc = (payload.receptor.rfc || "").trim().toUpperCase() || "XAXX010101000";
+    const esExtranjero = rfc === "XEXX010101000";
     const esPublicoGeneral =
-      rfc === "XAXX010101000" ||
-      (payload.receptor.nombre && payload.receptor.nombre.toUpperCase().includes("PUBLICO EN GENERAL"));
+      !esExtranjero &&
+      (rfc === "XAXX010101000" ||
+        (payload.receptor.nombre && payload.receptor.nombre.toUpperCase().trim() === "PUBLICO EN GENERAL"));
 
     // Variable de entorno directa para Público en General si está configurada
     const envPublicoUid =
@@ -286,7 +288,9 @@ export class FacturaComPacClient implements PacClient {
       return envPublicoUid;
     }
 
-    const razons = esPublicoGeneral
+    const razons = esExtranjero
+      ? (payload.receptor.nombre || "Venta al público en general extranjero")
+      : esPublicoGeneral
       ? "PUBLICO EN GENERAL"
       : normalizarNombreCfdi40(payload.receptor.nombre, rfc);
 
@@ -295,12 +299,12 @@ export class FacturaComPacClient implements PacClient {
       process.env.FACTURACOM_CLIENTE_EMAIL ||
       "facturacion@stylekorean.mx";
 
-    const codpos = esPublicoGeneral
+    const codpos = (esPublicoGeneral || esExtranjero)
       ? (payload.lugarExpedicion || payload.receptor.domicilioFiscalReceptor || "54090")
       : (payload.receptor.domicilioFiscalReceptor || payload.lugarExpedicion || "54090");
 
-    const regimen = esPublicoGeneral ? "616" : (payload.receptor.regimenFiscalReceptor || "616");
-    const usocfdi = esPublicoGeneral ? "S01" : (payload.receptor.usoCfdi || "G03");
+    const regimen = (esPublicoGeneral || esExtranjero) ? "616" : (payload.receptor.regimenFiscalReceptor || "616");
+    const usocfdi = (esPublicoGeneral || esExtranjero) ? "S01" : (payload.receptor.usoCfdi || "G03");
 
     const payloadCliente: any = {
       rfc,
@@ -309,7 +313,7 @@ export class FacturaComPacClient implements PacClient {
       usocfdi,
       codpos,
       email: emailDefault,
-      pais: rfc === "XEXX010101000" ? (payload.receptor.pais || "USA") : "MEX",
+      pais: "MEX",
     };
     if (payload.receptor.numRegIdTrib) payloadCliente.numregidtrib = payload.receptor.numRegIdTrib;
 
@@ -590,39 +594,45 @@ export class FacturaComPacClient implements PacClient {
 
       // 4. Construir cuerpo JSON para /v4/cfdi40/create
       const rfcReceptor = (payload.receptor.rfc || "").trim().toUpperCase();
+      const esExtranjero = rfcReceptor === "XEXX010101000";
       const esPublicoGeneral =
-        rfcReceptor === "XAXX010101000" ||
-        (payload.receptor.nombre && payload.receptor.nombre.toUpperCase().includes("PUBLICO EN GENERAL"));
+        !esExtranjero &&
+        (rfcReceptor === "XAXX010101000" ||
+          (payload.receptor.nombre && payload.receptor.nombre.toUpperCase().trim() === "PUBLICO EN GENERAL"));
 
-      const usoCfdiReceptor = esPublicoGeneral
+      const usoCfdiReceptor = (esPublicoGeneral || esExtranjero)
         ? "S01"
         : (payload.receptor.usoCfdi && payload.receptor.usoCfdi.trim()) || "G03";
 
-      const nombreNormalizado = esPublicoGeneral
+      const nombreNormalizado = esExtranjero
+        ? (payload.receptor.nombre || "Venta al público en general extranjero")
+        : esPublicoGeneral
         ? "PUBLICO EN GENERAL"
         : normalizarNombreCfdi40(payload.receptor.nombre, rfcReceptor);
+
+      const domicilioFiscalReceptor = (esPublicoGeneral || esExtranjero)
+        ? (payload.lugarExpedicion || "54090")
+        : (payload.receptor.domicilioFiscalReceptor || payload.lugarExpedicion || "54090");
+
+      const regimenReceptor = (esPublicoGeneral || esExtranjero) ? "616" : (payload.receptor.regimenFiscalReceptor || "616");
 
       const receptorNode: any = receptorUid
         ? {
             UID: receptorUid,
-            Rfc: esPublicoGeneral ? "XAXX010101000" : rfcReceptor,
+            Rfc: rfcReceptor,
             Nombre: nombreNormalizado,
-            DomicilioFiscalReceptor: esPublicoGeneral
-              ? (payload.lugarExpedicion || "54090")
-              : payload.receptor.domicilioFiscalReceptor,
-            RegimenFiscalReceptor: esPublicoGeneral ? "616" : payload.receptor.regimenFiscalReceptor,
-            RegimenFiscal: esPublicoGeneral ? "616" : payload.receptor.regimenFiscalReceptor,
+            DomicilioFiscalReceptor: domicilioFiscalReceptor,
+            RegimenFiscalReceptor: regimenReceptor,
+            RegimenFiscal: regimenReceptor,
             UsoCFDI: usoCfdiReceptor,
             usocfdi: usoCfdiReceptor,
           }
         : {
-            Rfc: esPublicoGeneral ? "XAXX010101000" : rfcReceptor,
+            Rfc: rfcReceptor,
             Nombre: nombreNormalizado,
-            DomicilioFiscalReceptor: esPublicoGeneral
-              ? (payload.lugarExpedicion || "54090")
-              : payload.receptor.domicilioFiscalReceptor,
-            RegimenFiscalReceptor: esPublicoGeneral ? "616" : payload.receptor.regimenFiscalReceptor,
-            RegimenFiscal: esPublicoGeneral ? "616" : payload.receptor.regimenFiscalReceptor,
+            DomicilioFiscalReceptor: domicilioFiscalReceptor,
+            RegimenFiscalReceptor: regimenReceptor,
+            RegimenFiscal: regimenReceptor,
             UsoCFDI: usoCfdiReceptor,
             usocfdi: usoCfdiReceptor,
           };
@@ -650,8 +660,8 @@ export class FacturaComPacClient implements PacClient {
         body.NumOrder = String(orderNum).trim().slice(0, 30);
       }
 
-      // Información Global obligatoria para ventas al público en general (CFDI 4.0 - Regla CFDI40130)
-      if (payload.informacionGlobal || esPublicoGeneral) {
+      // Información Global obligatoria únicamente para ventas al público en general nacional (XAXX010101000)
+      if ((payload.informacionGlobal || esPublicoGeneral) && !esExtranjero) {
         const fechaDoc = payload.fecha ? new Date(payload.fecha) : new Date();
         const mesDefecto = String(fechaDoc.getMonth() + 1).padStart(2, "0");
         const anioDefecto = fechaDoc.getFullYear();
