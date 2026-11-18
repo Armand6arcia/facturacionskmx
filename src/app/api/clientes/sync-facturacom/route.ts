@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { FacturaComPacClient } from "@/lib/pac/factura-com";
 import { limpiarRazonSocialCfdi40 } from "@/lib/parsers/csf-parser";
+import { ensureTablesExist } from "@/lib/db-init";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureTablesExist();
+
     const { searchParams } = new URL(req.url);
     const empresaIdParam = searchParams.get("empresaId") || req.cookies.get("sk_active_empresa_id")?.value;
 
@@ -92,35 +95,60 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      if (existente) {
-        await prisma.cliente.update({
-          where: { id: existente.id },
-          data: {
-            razonSocial: razonSocial || existente.razonSocial,
-            codigoPostal: codigoPostal || existente.codigoPostal,
-            regimenFiscal: regimenFiscal || existente.regimenFiscal,
-            usoCfdiDefault: usoCfdiDefault || existente.usoCfdiDefault,
-            email: existente.email || rawEmail,
-            numRegIdTrib: numRegIdTrib || existente.numRegIdTrib,
-            empresaId: empresa ? empresa.id : existente.empresaId,
-          },
-        });
-        actualizados++;
-      } else {
-        await prisma.cliente.create({
-          data: {
-            rfc,
-            razonSocial: razonSocial || "CLIENTE FACTURA.COM",
-            codigoPostal: codigoPostal || "06600",
-            regimenFiscal: regimenFiscal || "601",
-            usoCfdiDefault: usoCfdiDefault || "G03",
-            email: rawEmail,
-            numRegIdTrib,
-            pais: "MEX",
-            empresaId: empresa?.id || null,
-          },
-        });
-        nuevos++;
+      try {
+        if (existente) {
+          await prisma.cliente.update({
+            where: { id: existente.id },
+            data: {
+              razonSocial: razonSocial || existente.razonSocial,
+              codigoPostal: codigoPostal || existente.codigoPostal,
+              regimenFiscal: regimenFiscal || existente.regimenFiscal,
+              usoCfdiDefault: usoCfdiDefault || existente.usoCfdiDefault,
+              email: existente.email || rawEmail,
+              numRegIdTrib: numRegIdTrib || existente.numRegIdTrib,
+              empresaId: empresa ? empresa.id : existente.empresaId,
+            },
+          });
+          actualizados++;
+        } else {
+          await prisma.cliente.create({
+            data: {
+              rfc,
+              razonSocial: razonSocial || "CLIENTE FACTURA.COM",
+              codigoPostal: codigoPostal || "06600",
+              regimenFiscal: regimenFiscal || "601",
+              usoCfdiDefault: usoCfdiDefault || "G03",
+              email: rawEmail,
+              numRegIdTrib,
+              pais: "MEX",
+              empresaId: empresa?.id || null,
+            },
+          });
+          nuevos++;
+        }
+      } catch (clientErr: any) {
+        console.warn(`[SyncFacturaCom] Fallo inserción directa para RFC ${rfc}: ${clientErr?.message}. Intentando fallback.`);
+        try {
+          const fallbackExistente = await prisma.cliente.findFirst({
+            where: { rfc },
+          });
+          if (fallbackExistente) {
+            await prisma.cliente.update({
+              where: { id: fallbackExistente.id },
+              data: {
+                razonSocial: razonSocial || fallbackExistente.razonSocial,
+                codigoPostal: codigoPostal || fallbackExistente.codigoPostal,
+                regimenFiscal: regimenFiscal || fallbackExistente.regimenFiscal,
+                usoCfdiDefault: usoCfdiDefault || fallbackExistente.usoCfdiDefault,
+                email: fallbackExistente.email || rawEmail,
+                empresaId: empresa ? empresa.id : fallbackExistente.empresaId,
+              },
+            });
+            actualizados++;
+          }
+        } catch (innerErr: any) {
+          console.warn(`[SyncFacturaCom] No se pudo procesar cliente RFC ${rfc}:`, innerErr?.message);
+        }
       }
     }
 

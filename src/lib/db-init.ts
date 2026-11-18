@@ -58,6 +58,41 @@ export async function ensureTablesExist() {
       `);
     } catch {}
 
+    // Eliminar restricción UNIQUE antigua sobre rfc en tabla Cliente
+    // Esto permite que distintas empresas puedan tener clientes con el mismo RFC
+    try {
+      const idxRows: any = await prisma.$queryRawUnsafe(`
+        SHOW INDEX FROM Cliente WHERE Column_name = 'rfc' AND Non_unique = 0
+      `);
+      if (Array.isArray(idxRows)) {
+        for (const row of idxRows) {
+          const keyName = row.Key_name || row.key_name;
+          if (keyName && keyName.toLowerCase() !== "primary") {
+            try {
+              await prisma.$executeRawUnsafe(`ALTER TABLE Cliente DROP INDEX \`${keyName}\`;`);
+              console.log(`[DB-Init] Se eliminó índice UNIQUE '${keyName}' en Cliente(rfc).`);
+            } catch (e) {
+              console.warn(`[DB-Init] No se pudo eliminar índice ${keyName}:`, e);
+            }
+          }
+        }
+      }
+    } catch {}
+
+    const indexCandidates = ["rfc", "Cliente_rfc_key", "Cliente_rfc_unique"];
+    for (const name of indexCandidates) {
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE Cliente DROP INDEX \`${name}\`;`);
+      } catch {}
+    }
+
+    try {
+      await prisma.$executeRawUnsafe(`CREATE INDEX Cliente_rfc_idx ON Cliente (rfc);`);
+    } catch {}
+    try {
+      await prisma.$executeRawUnsafe(`CREATE INDEX Cliente_empresaId_idx ON Cliente (empresaId);`);
+    } catch {}
+
     // 2. Tabla ProductoSat
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS ProductoSat (

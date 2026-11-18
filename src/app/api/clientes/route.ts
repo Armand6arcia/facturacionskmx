@@ -99,19 +99,38 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
-      nuevoCliente = await prisma.cliente.create({
-        data: {
-          rfc: cleanRfc,
-          razonSocial: cleanRazonSocial,
-          codigoPostal: codigoPostal.trim(),
-          regimenFiscal: regimenFiscal.trim(),
-          usoCfdiDefault: cleanUso,
-          email: cleanEmail,
-          pais: pais || "MEX",
-          esExtranjero: Boolean(esExtranjero),
-          empresaId: empresa?.id || null,
-        },
-      });
+      try {
+        nuevoCliente = await prisma.cliente.create({
+          data: {
+            rfc: cleanRfc,
+            razonSocial: cleanRazonSocial,
+            codigoPostal: codigoPostal.trim(),
+            regimenFiscal: regimenFiscal.trim(),
+            usoCfdiDefault: cleanUso,
+            email: cleanEmail,
+            pais: pais || "MEX",
+            esExtranjero: Boolean(esExtranjero),
+            empresaId: empresa?.id || null,
+          },
+        });
+      } catch (createErr: any) {
+        const anyExist = await prisma.cliente.findFirst({ where: { rfc: cleanRfc } });
+        if (anyExist) {
+          nuevoCliente = await prisma.cliente.update({
+            where: { id: anyExist.id },
+            data: {
+              razonSocial: cleanRazonSocial,
+              codigoPostal: codigoPostal.trim(),
+              regimenFiscal: regimenFiscal.trim(),
+              usoCfdiDefault: cleanUso,
+              email: cleanEmail !== null ? cleanEmail : anyExist.email,
+              empresaId: empresa ? empresa.id : anyExist.empresaId,
+            },
+          });
+        } else {
+          throw createErr;
+        }
+      }
     }
 
     // Sincronizar automáticamente en tiempo real con la cuenta de Factura.com de la empresa

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 export default function HistorialPage() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [tab, setTab] = useState<"DOCUMENTOS" | "BITACORA">("DOCUMENTOS");
   const [documentos, setDocumentos] = useState<any[]>([]);
   const [bitacora, setBitacora] = useState<any[]>([]);
@@ -81,6 +82,15 @@ export default function HistorialPage() {
   };
 
   useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.authenticated && d.user) {
+          setCurrentUser(d.user);
+        }
+      })
+      .catch(() => {});
+
     fetchData();
 
     const onEmpresaChanged = () => fetchData();
@@ -133,17 +143,19 @@ export default function HistorialPage() {
           <FileText className="h-4 w-4" />
           Comprobantes ({documentos.length})
         </button>
-        <button
-          onClick={() => setTab("BITACORA")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition ${
-            tab === "BITACORA"
-              ? "border-blue-600 text-blue-700"
-              : "border-transparent text-slate-500 hover:text-slate-800"
-          }`}
-        >
-          <Clock className="h-4 w-4" />
-          Bitácora de Eventos ({bitacora.length})
-        </button>
+        {currentUser?.rol === "ADMIN" && (
+          <button
+            onClick={() => setTab("BITACORA")}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition ${
+              tab === "BITACORA"
+                ? "border-blue-600 text-blue-700"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Clock className="h-4 w-4" />
+            Bitácora de Eventos ({bitacora.length})
+          </button>
+        )}
       </div>
 
       {/* TAB 1: DOCUMENTOS */}
@@ -304,8 +316,8 @@ export default function HistorialPage() {
         </div>
       )}
 
-      {/* TAB 2: BITACORA DE EVENTOS */}
-      {tab === "BITACORA" && (
+      {/* TAB 2: BITACORA DE EVENTOS (Solo visible para administradores) */}
+      {tab === "BITACORA" && currentUser?.rol === "ADMIN" && (
         <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b bg-slate-50/70">
             <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">

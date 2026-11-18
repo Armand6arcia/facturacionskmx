@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/session";
 
 export async function GET(req: NextRequest) {
   try {
@@ -7,6 +8,10 @@ export async function GET(req: NextRequest) {
     const estado = searchParams.get("estado");
     const query = searchParams.get("q");
     const empresaId = searchParams.get("empresaId") || req.cookies.get("sk_active_empresa_id")?.value;
+
+    const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    const sessionUser = token ? await verifySessionToken(token) : null;
+    const isAdmin = sessionUser?.rol === "ADMIN";
 
     const where: any = {};
     if (empresaId && empresaId !== "ALL") {
@@ -37,11 +42,13 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { createdAt: "desc" },
       }),
-      prisma.bitacoraEvento.findMany({
-        take: 50,
-        orderBy: { createdAt: "desc" },
-        include: { documento: { select: { docNumber: true } } },
-      }),
+      isAdmin
+        ? prisma.bitacoraEvento.findMany({
+            take: 50,
+            orderBy: { createdAt: "desc" },
+            include: { documento: { select: { docNumber: true } } },
+          })
+        : Promise.resolve([]),
     ]);
 
     return NextResponse.json({ documentos, bitacora });
