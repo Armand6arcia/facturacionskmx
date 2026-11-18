@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Building2,
   ChevronDown,
@@ -192,17 +193,14 @@ export function CompanySelector({ isAdmin = false }: CompanySelectorProps) {
 
             {isAdmin && (
               <div className="pt-1.5 border-t mt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsOpen(false);
-                    setIsModalOpen(true);
-                  }}
+                <Link
+                  href="/empresas"
+                  onClick={() => setIsOpen(false)}
                   className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 flex items-center gap-2 transition-all"
                 >
                   <Settings className="h-3.5 w-3.5" />
-                  <span>Gestionar Perfiles y API Keys</span>
-                </button>
+                  <span>Gestionar Empresas y API Keys</span>
+                </Link>
               </div>
             )}
           </div>
@@ -217,3 +215,4 @@ export function CompanySelector({ isAdmin = false }: CompanySelectorProps) {
     </>
   );
 }
+

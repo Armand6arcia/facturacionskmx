@@ -211,8 +211,8 @@ export function CompaniesModal({ isOpen, onClose, onEmpresasUpdated }: Companies
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-3 sm:p-6 flex justify-center items-start pt-6 sm:pt-12">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-100 flex flex-col my-auto max-h-[85vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50/80 shrink-0">
           <div className="flex items-center gap-2.5">
@@ -581,18 +581,31 @@ export function CompaniesModal({ isOpen, onClose, onEmpresasUpdated }: Companies
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t bg-slate-50/70 flex items-center justify-between text-xs text-slate-500 shrink-0">
-          <span>
+        <div className="px-6 py-3 border-t bg-slate-50/70 flex items-center justify-between text-xs text-slate-500 shrink-0 gap-3">
+          <span className="truncate hidden sm:inline">
             Cada empresa tiene su propia serie, clientes y credenciales PAC aisladas.
           </span>
-          <button
-            onClick={onClose}
-            className="px-3.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 font-medium transition-colors"
-          >
-            Cerrar
-          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            {!isFormOpen && empresas.length < 5 && (
+              <button
+                type="button"
+                onClick={handleOpenCreate}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-all"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Agregar Empresa</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-3.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 font-medium transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+

@@ -8,6 +8,7 @@ import {
   History,
   Plus,
   Users,
+  Building2,
   LogOut,
   User as UserIcon,
   Shield,
@@ -60,7 +61,10 @@ export function Navigation() {
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/historial", label: "Historial CFDI", icon: History },
     ...(currentUser?.rol === "ADMIN"
-      ? [{ href: "/usuarios", label: "Usuarios", icon: Users }]
+      ? [
+          { href: "/empresas", label: "Empresas", icon: Building2 },
+          { href: "/usuarios", label: "Usuarios", icon: Users },
+        ]
       : []),
   ];
 
