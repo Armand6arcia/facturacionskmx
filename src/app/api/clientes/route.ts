@@ -11,8 +11,12 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q") || "";
+    const empresaId = searchParams.get("empresaId") || req.cookies.get("sk_active_empresa_id")?.value;
 
     const where: any = {};
+    if (empresaId && empresaId !== "ALL") {
+      where.empresaId = empresaId;
+    }
     if (query) {
       where.OR = [
         { razonSocial: { contains: query } },
@@ -23,6 +27,11 @@ export async function GET(req: NextRequest) {
     const clientes = await prisma.cliente.findMany({
       where,
       orderBy: { razonSocial: "asc" },
+      include: {
+        empresa: {
+          select: { id: true, nombreCorto: true, rfc: true, color: true },
+        },
+      },
     });
 
     return NextResponse.json({ clientes });
@@ -36,10 +45,29 @@ export async function POST(req: NextRequest) {
     await ensureTablesExist();
 
     const body = await req.json();
-    const { rfc, razonSocial, codigoPostal, regimenFiscal, usoCfdiDefault, email, pais, esExtranjero } = body;
+    const {
+      rfc,
+      razonSocial,
+      codigoPostal,
+      regimenFiscal,
+      usoCfdiDefault,
+      email,
+      pais,
+      esExtranjero,
+      empresaId: bodyEmpresaId,
+    } = body;
 
     if (!rfc || !razonSocial || !codigoPostal || !regimenFiscal) {
       return NextResponse.json({ error: "Todos los campos fiscales son requeridos." }, { status: 400 });
+    }
+
+    const targetEmpresaId = bodyEmpresaId || req.cookies.get("sk_active_empresa_id")?.value;
+    let empresa = null;
+    if (targetEmpresaId) {
+      empresa = await prisma.empresa.findUnique({ where: { id: targetEmpresaId } });
+    }
+    if (!empresa) {
+      empresa = await prisma.empresa.findFirst({ where: { activa: true }, orderBy: { createdAt: "asc" } });
     }
 
     const cleanRfc = rfc.trim().toUpperCase();
@@ -47,33 +75,53 @@ export async function POST(req: NextRequest) {
     const cleanUso = (usoCfdiDefault && usoCfdiDefault.trim().toUpperCase()) || "G03";
     const cleanEmail = email && typeof email === "string" ? email.trim() : null;
 
-    const nuevoCliente = await prisma.cliente.upsert({
-      where: { rfc: cleanRfc },
-      update: {
-        razonSocial: cleanRazonSocial,
-        codigoPostal: codigoPostal.trim(),
-        regimenFiscal: regimenFiscal.trim(),
-        usoCfdiDefault: cleanUso,
-        email: cleanEmail,
-        pais: pais || "MEX",
-        esExtranjero: Boolean(esExtranjero),
-      },
-      create: {
+    // Buscar si ya existe para esta empresa o en general
+    const clienteExistente = await prisma.cliente.findFirst({
+      where: {
         rfc: cleanRfc,
-        razonSocial: cleanRazonSocial,
-        codigoPostal: codigoPostal.trim(),
-        regimenFiscal: regimenFiscal.trim(),
-        usoCfdiDefault: cleanUso,
-        email: cleanEmail,
-        pais: pais || "MEX",
-        esExtranjero: Boolean(esExtranjero),
+        ...(empresa ? { empresaId: empresa.id } : {}),
       },
     });
 
-    // Sincronizar automáticamente en tiempo real con Factura.com
+    let nuevoCliente;
+    if (clienteExistente) {
+      nuevoCliente = await prisma.cliente.update({
+        where: { id: clienteExistente.id },
+        data: {
+          razonSocial: cleanRazonSocial,
+          codigoPostal: codigoPostal.trim(),
+          regimenFiscal: regimenFiscal.trim(),
+          usoCfdiDefault: cleanUso,
+          email: cleanEmail !== null ? cleanEmail : clienteExistente.email,
+          pais: pais || "MEX",
+          esExtranjero: Boolean(esExtranjero),
+          empresaId: empresa ? empresa.id : clienteExistente.empresaId,
+        },
+      });
+    } else {
+      nuevoCliente = await prisma.cliente.create({
+        data: {
+          rfc: cleanRfc,
+          razonSocial: cleanRazonSocial,
+          codigoPostal: codigoPostal.trim(),
+          regimenFiscal: regimenFiscal.trim(),
+          usoCfdiDefault: cleanUso,
+          email: cleanEmail,
+          pais: pais || "MEX",
+          esExtranjero: Boolean(esExtranjero),
+          empresaId: empresa?.id || null,
+        },
+      });
+    }
+
+    // Sincronizar automáticamente en tiempo real con la cuenta de Factura.com de la empresa
     let syncResult: any = { success: false, action: "skipped" };
     try {
-      const pac = new FacturaComPacClient();
+      const pac = new FacturaComPacClient({
+        apiKey: empresa?.apiKey,
+        secretKey: empresa?.secretKey,
+        environment: empresa?.ambiente,
+      });
       syncResult = await pac.sincronizarCliente({
         rfc: cleanRfc,
         razonSocial: cleanRazonSocial,
@@ -115,6 +163,7 @@ export async function PUT(req: NextRequest) {
 
     const clienteExistente = await prisma.cliente.findUnique({
       where: { id },
+      include: { empresa: true },
     });
 
     if (!clienteExistente) {
@@ -137,10 +186,13 @@ export async function PUT(req: NextRequest) {
         ? (email && typeof email === "string" && email.trim().length > 0 ? email.trim() : null)
         : clienteExistente.email;
 
-    // Si cambió el RFC, validar que no colisione con otro cliente existente
+    // Si cambió el RFC, validar que no colisione con otro cliente existente de la misma empresa
     if (cleanRfc !== clienteExistente.rfc) {
-      const duplicado = await prisma.cliente.findUnique({
-        where: { rfc: cleanRfc },
+      const duplicado = await prisma.cliente.findFirst({
+        where: {
+          rfc: cleanRfc,
+          empresaId: clienteExistente.empresaId,
+        },
       });
       if (duplicado && duplicado.id !== id) {
         return NextResponse.json(
@@ -162,6 +214,7 @@ export async function PUT(req: NextRequest) {
         pais: pais || clienteExistente.pais || "MEX",
         esExtranjero: esExtranjero !== undefined ? Boolean(esExtranjero) : clienteExistente.esExtranjero,
       },
+      include: { empresa: true },
     });
 
     // Actualizar automáticamente cualquier borrador pendiente asociado a este cliente
@@ -179,10 +232,15 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    // Sincronizar automáticamente en tiempo real con Factura.com
+    // Sincronizar automáticamente en tiempo real con la cuenta de Factura.com de la empresa
     let syncResult: any = { success: false, action: "skipped" };
     try {
-      const pac = new FacturaComPacClient();
+      const empresa = clienteExistente.empresa;
+      const pac = new FacturaComPacClient({
+        apiKey: empresa?.apiKey,
+        secretKey: empresa?.secretKey,
+        environment: empresa?.ambiente,
+      });
       syncResult = await pac.sincronizarCliente({
         rfc: cleanRfc,
         razonSocial: cleanRazonSocial,

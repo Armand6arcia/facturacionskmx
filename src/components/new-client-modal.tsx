@@ -150,6 +150,10 @@ export function NewClientModal({
         onClose();
       } else {
         // Modo Creación: POST /api/clientes
+        const savedEmpresaId =
+          document.cookie.match(/sk_active_empresa_id=([^;]+)/)?.[1] ||
+          localStorage.getItem("sk_active_empresa_id");
+
         const res = await fetch("/api/clientes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -160,6 +164,7 @@ export function NewClientModal({
             regimenFiscal,
             usoCfdiDefault: usoCfdi,
             email: email.trim() || null,
+            empresaId: savedEmpresaId ? decodeURIComponent(savedEmpresaId) : undefined,
           }),
         });
 

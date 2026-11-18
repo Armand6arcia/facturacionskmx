@@ -28,7 +28,7 @@ import {
   UserCog,
 } from "lucide-react";
 
-import { CompanyConfigModal } from "@/components/company-config-modal";
+import { CompaniesModal } from "@/components/companies-modal";
 import { ClientsCatalogModal } from "@/components/clients-catalog-modal";
 import { ProductsSatModal } from "@/components/products-sat-modal";
 import { UsersModal } from "@/components/users-modal";
@@ -77,6 +77,12 @@ export default function DashboardPage() {
         if (d.authenticated && d.user) setCurrentUser(d.user);
       })
       .catch(() => {});
+
+    const onEmpresaChanged = () => {
+      fetchDashboardData();
+    };
+    window.addEventListener("empresaChanged", onEmpresaChanged);
+    return () => window.removeEventListener("empresaChanged", onEmpresaChanged);
   }, []);
 
   const processFiles = async (fileProd: File, fileEnvio?: File | null) => {
@@ -89,6 +95,13 @@ export default function DashboardPage() {
       formData.append("envioFile", fileEnvio);
     }
     formData.append("tipoFactura", "CLIENTE");
+
+    const savedEmpresaId =
+      document.cookie.match(/sk_active_empresa_id=([^;]+)/)?.[1] ||
+      localStorage.getItem("sk_active_empresa_id");
+    if (savedEmpresaId) {
+      formData.append("empresaId", decodeURIComponent(savedEmpresaId));
+    }
 
     try {
       const res = await fetch("/api/upload", {
@@ -171,10 +184,10 @@ export default function DashboardPage() {
           </div>
           <div className="mt-4">
             <h3 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors">
-              Mi Empresa
+              {empresa?.nombreCorto || "Perfiles Emisores"}
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Datos fiscales y PAC
+              {empresa?.rfc ? `${empresa.rfc} · Cuentas PAC` : "Datos fiscales y PAC"}
             </p>
           </div>
         </div>
@@ -685,11 +698,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Modals */}
-      <CompanyConfigModal
+      <CompaniesModal
         isOpen={isCompanyModalOpen}
         onClose={() => setIsCompanyModalOpen(false)}
-        empresaData={empresa}
-        onSaved={() => fetchDashboardData()}
+        onEmpresasUpdated={() => fetchDashboardData()}
       />
 
       <ClientsCatalogModal

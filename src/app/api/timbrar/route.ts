@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
         cliente: true,
         items: true,
         timbre: true,
+        empresa: true,
       },
     });
 
@@ -99,7 +100,13 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Preparar payload CFDI 4.0
-    const pac = getPacClient();
+    const empresa = doc.empresa;
+    const pac = getPacClient({
+      apiKey: empresa?.apiKey,
+      secretKey: empresa?.secretKey,
+      environment: empresa?.ambiente,
+      provider: empresa?.pacProvider,
+    });
     const activeItems = doc.items.filter(
       (i) => !i.excluido && (doc.tipoFactura === "TRASLADO" || i.precioUnitario > 0)
     );
@@ -172,7 +179,10 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    const emisorCp = process.env.EMISOR_CP || "54090";
+    const emisorRfc = (empresa?.rfc || process.env.EMISOR_RFC || "SMX250408I48").trim().toUpperCase();
+    const emisorNombre = (empresa?.razonSocial || empresa?.nombreCorto || process.env.EMISOR_NOMBRE || "STYLEKOREAN MX").trim();
+    const emisorRegimen = (empresa?.regimenFiscal || process.env.EMISOR_REGIMEN || "601").trim();
+    const emisorCp = (empresa?.codigoPostal || process.env.EMISOR_CP || "54090").trim();
 
     const receptorPayload = isPublicoGeneral
       ? {
@@ -191,7 +201,7 @@ export async function POST(req: NextRequest) {
         };
 
     const payload: CfdiPayload = {
-      serie: doc.serie,
+      serie: doc.serie || empresa?.serie || "F",
       folio: doc.folio,
       docNumber: doc.docNumber,
       numOrder: doc.docNumber,
@@ -206,9 +216,9 @@ export async function POST(req: NextRequest) {
       total: doc.total,
       totalIva: doc.iva,
       emisor: {
-        rfc: process.env.EMISOR_RFC || "SMX250408I48",
-        nombre: process.env.EMISOR_NOMBRE || "STYLEKOREAN MX",
-        regimenFiscal: process.env.EMISOR_REGIMEN || "601",
+        rfc: emisorRfc,
+        nombre: emisorNombre,
+        regimenFiscal: emisorRegimen,
       },
       receptor: receptorPayload,
       informacionGlobal: informacionGlobalPayload,

@@ -7,7 +7,22 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const pac = new FacturaComPacClient();
+    const { searchParams } = new URL(req.url);
+    const empresaIdParam = searchParams.get("empresaId") || req.cookies.get("sk_active_empresa_id")?.value;
+
+    let empresa = null;
+    if (empresaIdParam) {
+      empresa = await prisma.empresa.findUnique({ where: { id: empresaIdParam } });
+    }
+    if (!empresa) {
+      empresa = await prisma.empresa.findFirst({ where: { activa: true }, orderBy: { createdAt: "asc" } });
+    }
+
+    const pac = new FacturaComPacClient({
+      apiKey: empresa?.apiKey,
+      secretKey: empresa?.secretKey,
+      environment: empresa?.ambiente,
+    });
     const clientesFactura = await pac.obtenerClientes();
 
     if (!Array.isArray(clientesFactura)) {
@@ -69,14 +84,17 @@ export async function POST(req: NextRequest) {
       const numRegIdTrib = raw.numregidtrib || raw.tax_id || null;
       const rawEmail = (raw.email || raw.correo || "").trim() || null;
 
-      // Verificar si ya existe
-      const existente = await prisma.cliente.findUnique({
-        where: { rfc },
+      // Verificar si ya existe en esta empresa
+      const existente = await prisma.cliente.findFirst({
+        where: {
+          rfc,
+          ...(empresa ? { empresaId: empresa.id } : {}),
+        },
       });
 
       if (existente) {
         await prisma.cliente.update({
-          where: { rfc },
+          where: { id: existente.id },
           data: {
             razonSocial: razonSocial || existente.razonSocial,
             codigoPostal: codigoPostal || existente.codigoPostal,
@@ -84,6 +102,7 @@ export async function POST(req: NextRequest) {
             usoCfdiDefault: usoCfdiDefault || existente.usoCfdiDefault,
             email: existente.email || rawEmail,
             numRegIdTrib: numRegIdTrib || existente.numRegIdTrib,
+            empresaId: empresa ? empresa.id : existente.empresaId,
           },
         });
         actualizados++;
@@ -98,6 +117,7 @@ export async function POST(req: NextRequest) {
             email: rawEmail,
             numRegIdTrib,
             pais: "MEX",
+            empresaId: empresa?.id || null,
           },
         });
         nuevos++;

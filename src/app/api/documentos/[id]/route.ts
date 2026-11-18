@@ -14,6 +14,7 @@ export async function GET(
         cliente: true,
         items: true,
         timbre: true,
+        empresa: true,
         bitacora: { orderBy: { createdAt: "desc" } },
       },
     });

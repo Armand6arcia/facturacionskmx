@@ -24,6 +24,14 @@ export async function POST(req: NextRequest) {
     const tipoFactura = (formData.get("tipoFactura") as string) || "CLIENTE";
     const clienteId = (formData.get("clienteId") as string) || null;
     const customDocNumber = (formData.get("docNumber") as string)?.trim() || null;
+    const targetEmpresaId = (formData.get("empresaId") as string) || req.cookies.get("sk_active_empresa_id")?.value;
+    let targetEmpresa = null;
+    if (targetEmpresaId) {
+      targetEmpresa = await prisma.empresa.findUnique({ where: { id: targetEmpresaId } });
+    }
+    if (!targetEmpresa) {
+      targetEmpresa = await prisma.empresa.findFirst({ where: { activa: true }, orderBy: { createdAt: "asc" } });
+    }
 
     if (!file) {
       return NextResponse.json({ error: "No se proporcionó ningún archivo." }, { status: 400 });
@@ -150,7 +158,8 @@ export async function POST(req: NextRequest) {
       regimenReceptor,
       cpReceptor,
       usoCfdi,
-      serie: process.env.EMISOR_SERIE || "F",
+      empresaId: targetEmpresa?.id || null,
+      serie: targetEmpresa?.serie || process.env.EMISOR_SERIE || "F",
       formaPago: parsedPrincipal.headerMetadata.suggestedPaymentForm || "03",
       metodoPago: "PUE",
       subtotal: taxRes.subtotal,

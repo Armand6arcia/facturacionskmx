@@ -6,8 +6,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const estado = searchParams.get("estado");
     const query = searchParams.get("q");
+    const empresaId = searchParams.get("empresaId") || req.cookies.get("sk_active_empresa_id")?.value;
 
     const where: any = {};
+    if (empresaId && empresaId !== "ALL") {
+      where.empresaId = empresaId;
+    }
     if (estado && estado !== "TODOS") {
       where.estado = estado;
     }
@@ -26,6 +30,9 @@ export async function GET(req: NextRequest) {
         include: {
           cliente: true,
           timbre: true,
+          empresa: {
+            select: { nombreCorto: true, rfc: true, color: true },
+          },
           _count: { select: { items: true } },
         },
         orderBy: { createdAt: "desc" },

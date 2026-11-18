@@ -54,7 +54,13 @@ export function ClientsCatalogModal({
   const fetchClientes = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/clientes?q=${encodeURIComponent(query)}`);
+      const savedEmpresaId =
+        document.cookie.match(/sk_active_empresa_id=([^;]+)/)?.[1] ||
+        localStorage.getItem("sk_active_empresa_id");
+      const url = `/api/clientes?q=${encodeURIComponent(query)}${
+        savedEmpresaId ? `&empresaId=${encodeURIComponent(savedEmpresaId)}` : ""
+      }`;
+      const res = await fetch(url);
       const data = await res.json();
       if (data.clientes) {
         setClientes(data.clientes);
@@ -77,7 +83,13 @@ export function ClientsCatalogModal({
     setSyncResult(null);
 
     try {
-      const res = await fetch("/api/clientes/sync-facturacom", {
+      const savedEmpresaId =
+        document.cookie.match(/sk_active_empresa_id=([^;]+)/)?.[1] ||
+        localStorage.getItem("sk_active_empresa_id");
+      const url = `/api/clientes/sync-facturacom${
+        savedEmpresaId ? `?empresaId=${encodeURIComponent(savedEmpresaId)}` : ""
+      }`;
+      const res = await fetch(url, {
         method: "POST",
       });
       const data = await res.json();

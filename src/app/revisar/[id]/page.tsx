@@ -438,10 +438,15 @@ export default function ReviewPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-extrabold text-xl text-slate-900 tracking-tight">
                 Documento {documento.docNumber}
               </span>
+              {documento.empresa && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-900 text-white font-bold flex items-center gap-1">
+                  <span>🏢</span> {documento.empresa.nombreCorto}
+                </span>
+              )}
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold uppercase">
                 {documento.formatoOrigen}
               </span>

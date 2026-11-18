@@ -12,6 +12,7 @@ import {
   User as UserIcon,
   Shield,
 } from "lucide-react";
+import { CompanySelector } from "./company-selector";
 
 interface CurrentUser {
   id: string;
@@ -110,7 +111,9 @@ export function Navigation() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <CompanySelector isAdmin={currentUser?.rol === "ADMIN"} />
+
           <Link
             href="/#nueva-factura"
             onClick={() => {

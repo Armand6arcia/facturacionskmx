@@ -58,6 +58,33 @@ describe("FacturaComPacClient", () => {
     expect(result.errorMessage).toContain("Faltan las credenciales");
   });
 
+  it("acepta credenciales específicas por empresa en el constructor", async () => {
+    const customClient = new FacturaComPacClient({
+      apiKey: "custom-api-key-empresa-2",
+      secretKey: "custom-secret-key-empresa-2",
+      environment: "sandbox",
+    });
+
+    const spy = vi.spyOn(customClient as any, "request").mockResolvedValue({
+      status: 200,
+      ok: true,
+      isJson: true,
+      json: {
+        response: "success",
+        data: {
+          uuid: "TEST-UUID-CUSTOM-EMPRESA",
+          cfdi_version: "4.0",
+        },
+      },
+      text: "",
+    });
+
+    const result = await customClient.timbrar(mockPayload);
+    expect(result.success).toBe(true);
+    expect(result.uuid).toBe("TEST-UUID-CUSTOM-EMPRESA");
+    spy.mockRestore();
+  });
+
   it("procesa respuesta exitosa de Factura.com correctamente", async () => {
     process.env.FACTURA_COM_API_KEY = "test_api_key";
     process.env.FACTURA_COM_SECRET_KEY = "test_secret_key";

@@ -60,6 +60,13 @@ export default function HistorialPage() {
       if (estadoFilter !== "TODOS") params.set("estado", estadoFilter);
       if (searchQuery) params.set("q", searchQuery);
 
+      const savedEmpresaId =
+        document.cookie.match(/sk_active_empresa_id=([^;]+)/)?.[1] ||
+        localStorage.getItem("sk_active_empresa_id");
+      if (savedEmpresaId && savedEmpresaId !== "ALL") {
+        params.set("empresaId", decodeURIComponent(savedEmpresaId));
+      }
+
       const res = await fetch(`/api/historial?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
@@ -75,6 +82,10 @@ export default function HistorialPage() {
 
   useEffect(() => {
     fetchData();
+
+    const onEmpresaChanged = () => fetchData();
+    window.addEventListener("empresaChanged", onEmpresaChanged);
+    return () => window.removeEventListener("empresaChanged", onEmpresaChanged);
   }, [estadoFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -206,8 +217,13 @@ export default function HistorialPage() {
 
                       return (
                         <tr key={d.id} className="hover:bg-slate-50 transition">
-                          <td className="py-3 px-4 font-bold text-slate-900 font-mono">
-                            {d.docNumber}
+                          <td className="py-3 px-4 font-mono">
+                            <div className="font-bold text-slate-900">{d.docNumber}</div>
+                            {d.empresa && (
+                              <div className="text-[10px] text-blue-700 font-semibold font-sans flex items-center gap-1">
+                                <span>🏢</span> {d.empresa.nombreCorto}
+                              </div>
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <div className="font-semibold text-slate-800">

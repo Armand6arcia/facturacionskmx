@@ -7,9 +7,31 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model Empresa {
+  id            String      @id @default(cuid())
+  nombreCorto   String
+  razonSocial   String
+  rfc           String      @unique
+  regimenFiscal String      // e.g. "601"
+  codigoPostal  String      // e.g. "54090"
+  serie         String      @default("F")
+  pacProvider   String      @default("facturacom")
+  apiKey        String?
+  secretKey     String?
+  ambiente      String      @default("production") // production | sandbox
+  activa        Boolean     @default(true)
+  color         String?     @default("blue")
+  documentos    Documento[]
+  clientes      Cliente[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
 model Cliente {
   id              String      @id @default(cuid())
-  rfc             String      @unique
+  empresaId       String?
+  empresa         Empresa?    @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  rfc             String
   razonSocial     String
   codigoPostal    String
   regimenFiscal   String      // e.g. "601", "616"
@@ -20,6 +42,8 @@ model Cliente {
   esExtranjero    Boolean     @default(false)
   documentos      Documento[]
   createdAt       DateTime    @default(now())
+
+  @@index([empresaId])
 }
 
 model ProductoSat {
@@ -38,6 +62,8 @@ model ProductoSat {
 
 model Documento {
   id              String          @id @default(cuid())
+  empresaId       String?
+  empresa         Empresa?        @relation(fields: [empresaId], references: [id], onDelete: SetNull)
   docNumber       String          @unique // e.g. "IN00491311"
   fileHash        String          // SHA256 hex
   formatoOrigen   String          // "HTML_XLS" | "BINARY_XLS"
@@ -141,15 +167,16 @@ model BitacoraEvento {
 }
 
 model Usuario {
-  id        String   @id @default(cuid())
-  nombre    String
-  usuario   String?  @unique
-  correo    String   @unique
-  password  String
-  rol       String   @default("ADMIN") // ADMIN, FACTURADOR
-  activo    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(cuid())
+  nombre            String
+  usuario           String?  @unique
+  correo            String   @unique
+  password          String
+  rol               String   @default("ADMIN") // ADMIN, FACTURADOR
+  empresasPermitidas String?  @db.Text // JSON: array de empresaId permitidos (null = acceso a todas)
+  activo            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 

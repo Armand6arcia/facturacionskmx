@@ -1,14 +1,40 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureTablesExist } from "@/lib/db-init";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await ensureTablesExist();
 
-    // 1. Estadísticas globales
+    const { searchParams } = new URL(req.url);
+    const empresaIdParam = searchParams.get("empresaId") || req.cookies.get("sk_active_empresa_id")?.value;
+
+    // Buscar empresa activa
+    let activeEmpresa: any = null;
+    if (empresaIdParam) {
+      activeEmpresa = await prisma.empresa.findUnique({
+        where: { id: empresaIdParam, activa: true },
+      });
+    }
+
+    if (!activeEmpresa) {
+      activeEmpresa = await prisma.empresa.findFirst({
+        where: { activa: true },
+        orderBy: { createdAt: "asc" },
+      });
+    }
+
+    const docWhere: any = {};
+    const clienteWhere: any = {};
+
+    if (activeEmpresa) {
+      docWhere.empresaId = activeEmpresa.id;
+      clienteWhere.empresaId = activeEmpresa.id;
+    }
+
+    // 1. Estadísticas para la empresa seleccionada
     const [
       totalDocumentos,
       totalTimbrados,
@@ -17,14 +43,16 @@ export async function GET() {
       productosSinClave,
       totalUsuarios,
       ultimosDocs,
+      todasEmpresas,
     ] = await Promise.all([
-      prisma.documento.count(),
-      prisma.documento.count({ where: { estado: "TIMBRADO" } }),
-      prisma.cliente.count(),
+      prisma.documento.count({ where: docWhere }),
+      prisma.documento.count({ where: { ...docWhere, estado: "TIMBRADO" } }),
+      prisma.cliente.count({ where: clienteWhere }),
       prisma.productoSat.count(),
       prisma.productoSat.count({ where: { claveProdServ: null } }),
       prisma.usuario.count().catch(() => 0),
       prisma.documento.findMany({
+        where: docWhere,
         take: 5,
         orderBy: { fechaEmision: "desc" },
         include: {
@@ -34,31 +62,69 @@ export async function GET() {
           timbre: {
             select: { uuid: true, fechaTimbrado: true, estado: true },
           },
+          empresa: {
+            select: { nombreCorto: true, rfc: true, color: true },
+          },
+        },
+      }),
+      prisma.empresa.findMany({
+        where: { activa: true },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          nombreCorto: true,
+          razonSocial: true,
+          rfc: true,
+          regimenFiscal: true,
+          codigoPostal: true,
+          serie: true,
+          color: true,
+          ambiente: true,
         },
       }),
     ]);
 
     // Calcular monto total de documentos timbrados
     const timbradosData = await prisma.documento.findMany({
-      where: { estado: "TIMBRADO" },
+      where: { ...docWhere, estado: "TIMBRADO" },
       select: { total: true },
     });
     const montoTotalTimbrado = timbradosData.reduce((acc, doc) => acc + (doc.total || 0), 0);
 
-    // Datos por defecto de la empresa emisora
-    const empresa = {
-      razonSocial: process.env.EMISOR_NOMBRE || "STYLEKOREAN MX",
-      rfc: process.env.EMISOR_RFC || "SMX250408I48",
-      regimenFiscal: process.env.EMISOR_REGIMEN || "601",
-      regimenDescripcion: "General de Ley Personas Morales",
-      codigoPostal: process.env.EMISOR_CP || "54090",
-      lugarExpedicion: "54090",
-      domicilioFiscal:
-        "AV. JESUS REYES HEROLES 293 Col. UNID.MARAVILLAS CEYLAN, C.P. 54090, TLALNEPANTLA DE BAZ, TLALNEPANTLA DE BAZ, México",
-      seriePorDefecto: "F",
-      pacProvider: process.env.PAC_PROVIDER || "facturacom",
-      versionCfdi: "4.0",
-    };
+    // Datos de la empresa emisora seleccionada
+    const empresa = activeEmpresa
+      ? {
+          id: activeEmpresa.id,
+          nombreCorto: activeEmpresa.nombreCorto,
+          razonSocial: activeEmpresa.razonSocial,
+          rfc: activeEmpresa.rfc,
+          regimenFiscal: activeEmpresa.regimenFiscal,
+          regimenDescripcion: "General de Ley Personas Morales",
+          codigoPostal: activeEmpresa.codigoPostal,
+          lugarExpedicion: activeEmpresa.codigoPostal,
+          domicilioFiscal: `C.P. ${activeEmpresa.codigoPostal}, México`,
+          seriePorDefecto: activeEmpresa.serie || "F",
+          pacProvider: activeEmpresa.pacProvider || "facturacom",
+          ambiente: activeEmpresa.ambiente || "production",
+          color: activeEmpresa.color || "blue",
+          versionCfdi: "4.0",
+        }
+      : {
+          id: "default",
+          nombreCorto: "StyleKorean MX",
+          razonSocial: process.env.EMISOR_NOMBRE || "STYLEKOREAN MX",
+          rfc: process.env.EMISOR_RFC || "SMX250408I48",
+          regimenFiscal: process.env.EMISOR_REGIMEN || "601",
+          regimenDescripcion: "General de Ley Personas Morales",
+          codigoPostal: process.env.EMISOR_CP || "54090",
+          lugarExpedicion: "54090",
+          domicilioFiscal: "C.P. 54090, Tlalnepantla de Baz, México",
+          seriePorDefecto: "F",
+          pacProvider: process.env.PAC_PROVIDER || "facturacom",
+          ambiente: "production",
+          color: "blue",
+          versionCfdi: "4.0",
+        };
 
     return NextResponse.json({
       success: true,
@@ -74,6 +140,7 @@ export async function GET() {
         totalUsuarios,
       },
       empresa,
+      empresasDisponibles: todasEmpresas,
       ultimosDocs: ultimosDocs.map((d) => ({
         id: d.id,
         docNumber: d.docNumber,
@@ -82,9 +149,13 @@ export async function GET() {
         fechaEmision: d.fechaEmision,
         total: d.total,
         moneda: "MXN",
-        clienteNombre: d.cliente?.razonSocial || d.nombreReceptor || (d.tipoFactura === "GLOBAL_NACIONAL" ? "Público en General" : "Sin asignar"),
+        clienteNombre:
+          d.cliente?.razonSocial ||
+          d.nombreReceptor ||
+          (d.tipoFactura === "GLOBAL_NACIONAL" ? "Público en General" : "Sin asignar"),
         clienteRfc: d.cliente?.rfc || d.rfcReceptor || "XAXX010101000",
         uuid: d.timbre?.uuid,
+        empresaNombre: d.empresa?.nombreCorto,
       })),
     });
   } catch (error: any) {

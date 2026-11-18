@@ -6,11 +6,33 @@ export async function ensureTablesExist() {
   if (tablesInitialized) return;
 
   try {
+    // 0. Tabla Empresa (Multi-Empresa / Multi-Perfil)
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS Empresa (
+        id VARCHAR(191) NOT NULL PRIMARY KEY,
+        nombreCorto VARCHAR(191) NOT NULL,
+        razonSocial VARCHAR(191) NOT NULL,
+        rfc VARCHAR(191) NOT NULL UNIQUE,
+        regimenFiscal VARCHAR(191) NOT NULL,
+        codigoPostal VARCHAR(191) NOT NULL,
+        serie VARCHAR(191) NOT NULL DEFAULT 'F',
+        pacProvider VARCHAR(191) NOT NULL DEFAULT 'facturacom',
+        apiKey VARCHAR(191) NULL,
+        secretKey VARCHAR(191) NULL,
+        ambiente VARCHAR(191) NOT NULL DEFAULT 'production',
+        activa BOOLEAN NOT NULL DEFAULT TRUE,
+        color VARCHAR(50) NULL DEFAULT 'blue',
+        createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        updatedAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
     // 1. Tabla Cliente
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS Cliente (
         id VARCHAR(191) NOT NULL PRIMARY KEY,
-        rfc VARCHAR(191) NOT NULL UNIQUE,
+        empresaId VARCHAR(191) NULL,
+        rfc VARCHAR(191) NOT NULL,
         razonSocial VARCHAR(191) NOT NULL,
         codigoPostal VARCHAR(191) NOT NULL,
         regimenFiscal VARCHAR(191) NOT NULL,
@@ -19,18 +41,22 @@ export async function ensureTablesExist() {
         pais VARCHAR(191) NOT NULL DEFAULT 'MEX',
         numRegIdTrib VARCHAR(191) NULL,
         esExtranjero BOOLEAN NOT NULL DEFAULT FALSE,
-        createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+        createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        INDEX (empresaId)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    // Asegurar columna email en tabla Cliente si fue creada previamente sin ella
+    // Asegurar columna email y empresaId en tabla Cliente si fue creada previamente sin ellas
     try {
       await prisma.$executeRawUnsafe(`
         ALTER TABLE Cliente ADD COLUMN email VARCHAR(191) NULL;
       `);
-    } catch {
-      // Ignorar si la columna ya existe
-    }
+    } catch {}
+    try {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE Cliente ADD COLUMN empresaId VARCHAR(191) NULL;
+      `);
+    } catch {}
 
     // 2. Tabla ProductoSat
     await prisma.$executeRawUnsafe(`
@@ -53,6 +79,7 @@ export async function ensureTablesExist() {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS Documento (
         id VARCHAR(191) NOT NULL PRIMARY KEY,
+        empresaId VARCHAR(191) NULL,
         docNumber VARCHAR(191) NOT NULL UNIQUE,
         fileHash VARCHAR(191) NOT NULL,
         formatoOrigen VARCHAR(191) NOT NULL,
@@ -79,9 +106,17 @@ export async function ensureTablesExist() {
         pesoTotalKg DOUBLE NOT NULL,
         createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         INDEX (clienteId),
+        INDEX (empresaId),
         FOREIGN KEY (clienteId) REFERENCES Cliente(id) ON DELETE SET NULL ON UPDATE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    // Asegurar columna empresaId en Documento
+    try {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE Documento ADD COLUMN empresaId VARCHAR(191) NULL;
+      `);
+    } catch {}
 
     // 4. Tabla DocumentoItem
     await prisma.$executeRawUnsafe(`
@@ -176,13 +211,56 @@ export async function ensureTablesExist() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    // Migración retroactiva: agregar columna usuario si no existe
+    // Migración retroactiva: agregar columna usuario y empresasPermitidas si no existen
     try {
       await prisma.$executeRawUnsafe(`
         ALTER TABLE Usuario ADD COLUMN usuario VARCHAR(191) NULL UNIQUE;
       `);
-    } catch {
-      // Si la columna ya existe, se ignora
+    } catch {}
+    try {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE Usuario ADD COLUMN empresasPermitidas TEXT NULL;
+      `);
+    } catch {}
+
+    // Sincronizar empresa por defecto si la tabla está vacía y vincular datos previos
+    try {
+      const countEmpresas = await prisma.empresa.count().catch(() => 0);
+      let defaultEmpId: string | null = null;
+
+      if (countEmpresas === 0) {
+        const defaultEmpresa = await prisma.empresa.create({
+          data: {
+            nombreCorto: "StyleKorean MX",
+            razonSocial: process.env.EMISOR_NOMBRE || "STYLE KOREAN MEXICO S.A. DE C.V.",
+            rfc: (process.env.EMISOR_RFC || "SMX250408I48").trim().toUpperCase(),
+            regimenFiscal: process.env.EMISOR_REGIMEN || "601",
+            codigoPostal: process.env.EMISOR_CP || "54090",
+            serie: "F",
+            apiKey: process.env.FACTURA_COM_API_KEY || process.env.FACTURACOM_API_KEY || null,
+            secretKey: process.env.FACTURA_COM_SECRET_KEY || process.env.FACTURACOM_SECRET_KEY || null,
+            ambiente: process.env.FACTURA_COM_ENVIRONMENT || "production",
+            activa: true,
+            color: "blue",
+          },
+        });
+        defaultEmpId = defaultEmpresa.id;
+      } else {
+        const first = await prisma.empresa.findFirst({ orderBy: { createdAt: "asc" } });
+        if (first) defaultEmpId = first.id;
+      }
+
+      if (defaultEmpId) {
+        // Asignar empresa por defecto a cualquier documento o cliente que aún no tenga empresaId
+        await prisma.$executeRawUnsafe(`
+          UPDATE Documento SET empresaId = '${defaultEmpId}' WHERE empresaId IS NULL OR empresaId = '';
+        `);
+        await prisma.$executeRawUnsafe(`
+          UPDATE Cliente SET empresaId = '${defaultEmpId}' WHERE empresaId IS NULL OR empresaId = '';
+        `);
+      }
+    } catch (empErr) {
+      console.warn("Aviso al inicializar empresa por defecto:", empErr);
     }
 
     // Sincronizar catálogo inicial si está vacío

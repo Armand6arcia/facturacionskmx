@@ -58,23 +58,34 @@ export class FacturaComPacClient implements PacClient {
   private secretKey: string;
   private baseUrl: string;
 
-  constructor() {
+  constructor(config?: {
+    apiKey?: string | null;
+    secretKey?: string | null;
+    environment?: string | null;
+    baseUrl?: string | null;
+  }) {
     this.apiKey =
+      (config?.apiKey && config.apiKey.trim()) ||
       process.env.FACTURA_COM_API_KEY ||
       process.env.FACTURACOM_API_KEY ||
       "";
     this.secretKey =
+      (config?.secretKey && config.secretKey.trim()) ||
       process.env.FACTURA_COM_SECRET_KEY ||
       process.env.FACTURACOM_SECRET_KEY ||
       "";
     const envVal =
+      (config?.environment && config.environment.trim()) ||
       process.env.FACTURA_COM_ENVIRONMENT ||
       process.env.FACTURACOM_ENV ||
       "production";
 
     const isSandbox = envVal.toLowerCase() === "sandbox";
 
-    const customBase = process.env.FACTURA_COM_BASE_URL || process.env.FACTURACOM_BASE_URL;
+    const customBase =
+      (config?.baseUrl && config.baseUrl.trim()) ||
+      process.env.FACTURA_COM_BASE_URL ||
+      process.env.FACTURACOM_BASE_URL;
     this.baseUrl = (
       customBase ||
       (isSandbox ? "https://sandbox.factura.com/api" : "https://api.factura.com")
@@ -424,7 +435,7 @@ export class FacturaComPacClient implements PacClient {
   /**
    * Obtiene el ID numérico de la serie configurada en Factura.com (ej. "F").
    */
-  private async resolverSerieId(serieNombre: string, tipo: string): Promise<string | undefined> {
+  public async resolverSerieId(serieNombre: string, tipo: string): Promise<string | undefined> {
     const envSerieId = process.env.FACTURA_COM_SERIE_ID || process.env.FACTURACOM_SERIE_ID;
     if (envSerieId) return envSerieId;
 

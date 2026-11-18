@@ -58,11 +58,17 @@ async function main() {
   ];
 
   for (const c of clientes) {
-    await prisma.cliente.upsert({
-      where: { rfc: c.rfc },
-      update: c,
-      create: c,
-    });
+    const existing = await prisma.cliente.findFirst({ where: { rfc: c.rfc } });
+    if (existing) {
+      await prisma.cliente.update({
+        where: { id: existing.id },
+        data: c,
+      });
+    } else {
+      await prisma.cliente.create({
+        data: c,
+      });
+    }
   }
   console.log(`Clientes creados/actualizados: ${clientes.length}`);
 

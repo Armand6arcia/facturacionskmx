@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
         usuario: true,
         correo: true,
         rol: true,
+        empresasPermitidas: true,
         activo: true,
         createdAt: true,
         updatedAt: true,
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { nombre, usuario, correo, password, rol, activo } = body;
+    const { nombre, usuario, correo, password, rol, activo, empresasPermitidas } = body;
 
     if (!nombre || typeof nombre !== "string" || !nombre.trim()) {
       return NextResponse.json(
@@ -144,6 +145,7 @@ export async function POST(req: NextRequest) {
         correo: cleanCorreo,
         password: hashedPassword,
         rol: rolAsignado,
+        empresasPermitidas: Array.isArray(empresasPermitidas) ? JSON.stringify(empresasPermitidas) : null,
         activo: activo !== undefined ? Boolean(activo) : true,
       },
       select: {
@@ -152,6 +154,7 @@ export async function POST(req: NextRequest) {
         usuario: true,
         correo: true,
         rol: true,
+        empresasPermitidas: true,
         activo: true,
         createdAt: true,
       },
@@ -180,7 +183,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, nombre, usuario, correo, password, rol, activo } = body;
+    const { id, nombre, usuario, correo, password, rol, activo, empresasPermitidas } = body;
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
@@ -257,6 +260,12 @@ export async function PUT(req: NextRequest) {
       updateData.activo = Boolean(activo);
     }
 
+    if (empresasPermitidas !== undefined) {
+      updateData.empresasPermitidas = Array.isArray(empresasPermitidas)
+        ? JSON.stringify(empresasPermitidas)
+        : null;
+    }
+
     const usuarioActualizado = await prisma.usuario.update({
       where: { id },
       data: updateData,
@@ -266,6 +275,7 @@ export async function PUT(req: NextRequest) {
         usuario: true,
         correo: true,
         rol: true,
+        empresasPermitidas: true,
         activo: true,
         createdAt: true,
         updatedAt: true,
