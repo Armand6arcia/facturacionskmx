@@ -32,6 +32,7 @@ interface UsuarioItem {
   usuario?: string;
   correo: string;
   rol: string;
+  empresasPermitidas?: string | null;
   activo: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -40,6 +41,7 @@ interface UsuarioItem {
 export default function UsuariosPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [usuarios, setUsuarios] = useState<UsuarioItem[]>([]);
+  const [availableEmpresas, setAvailableEmpresas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -55,12 +57,23 @@ export default function UsuariosPage() {
   const [formConfirmPassword, setFormConfirmPassword] = useState("");
   const [formRol, setFormRol] = useState("ADMIN");
   const [formActivo, setFormActivo] = useState(true);
+  const [formEmpresasPermitidas, setFormEmpresasPermitidas] = useState<string[]>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
   // Eliminación
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchEmpresas = async () => {
+    try {
+      const res = await fetch("/api/empresas");
+      const data = await res.json();
+      if (data.empresas) {
+        setAvailableEmpresas(data.empresas);
+      }
+    } catch {}
+  };
 
   const fetchUsuarios = async () => {
     setLoading(true);
@@ -88,6 +101,7 @@ export default function UsuariosPage() {
         } else {
           setCurrentUser(d.user);
           fetchUsuarios();
+          fetchEmpresas();
         }
       })
       .catch(() => {
@@ -104,6 +118,7 @@ export default function UsuariosPage() {
     setFormConfirmPassword("");
     setFormRol("ADMIN");
     setFormActivo(true);
+    setFormEmpresasPermitidas([]);
     setShowPassword(false);
     setFormError("");
     setIsFormOpen(true);
@@ -118,6 +133,13 @@ export default function UsuariosPage() {
     setFormConfirmPassword("");
     setFormRol(user.rol || "ADMIN");
     setFormActivo(user.activo);
+    try {
+      setFormEmpresasPermitidas(
+        user.empresasPermitidas ? JSON.parse(user.empresasPermitidas) : []
+      );
+    } catch {
+      setFormEmpresasPermitidas([]);
+    }
     setShowPassword(false);
     setFormError("");
     setIsFormOpen(true);
@@ -169,6 +191,10 @@ export default function UsuariosPage() {
             password: formPassword,
             rol: formRol,
             activo: formActivo,
+            empresasPermitidas:
+              formRol === "FACTURADOR" && formEmpresasPermitidas.length > 0
+                ? formEmpresasPermitidas
+                : null,
           }),
         });
         const data = await res.json();
@@ -182,6 +208,10 @@ export default function UsuariosPage() {
           correo: formCorreo.trim().toLowerCase(),
           rol: formRol,
           activo: formActivo,
+          empresasPermitidas:
+            formRol === "FACTURADOR" && formEmpresasPermitidas.length > 0
+              ? formEmpresasPermitidas
+              : null,
         };
         if (formPassword.trim()) {
           payload.password = formPassword;
@@ -387,6 +417,7 @@ export default function UsuariosPage() {
                   <th className="py-3 px-6">Nombre / Usuario</th>
                   <th className="py-3 px-6">Correo Electrónico</th>
                   <th className="py-3 px-6 text-center">Rol</th>
+                  <th className="py-3 px-6 text-center">Empresas Asignadas</th>
                   <th className="py-3 px-6 text-center">Estado</th>
                   <th className="py-3 px-6 text-center">Fecha Registro</th>
                   <th className="py-3 px-6 text-right">Acciones</th>
@@ -430,6 +461,43 @@ export default function UsuariosPage() {
                           <Shield className="h-3 w-3" />
                           {u.rol === "ADMIN" ? "Administrador" : "Facturador"}
                         </span>
+                      </td>
+                      <td className="py-3.5 px-6 text-center">
+                        {u.rol === "ADMIN" ? (
+                          <span className="text-[11px] font-semibold text-slate-500">
+                            Todas (Acceso Total)
+                          </span>
+                        ) : (() => {
+                          let allowed: string[] = [];
+                          try {
+                            if (u.empresasPermitidas) allowed = JSON.parse(u.empresasPermitidas);
+                          } catch {}
+
+                          if (!allowed || allowed.length === 0) {
+                            return (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                Todas ({availableEmpresas.length})
+                              </span>
+                            );
+                          }
+
+                          const allowedNames = availableEmpresas
+                            .filter((emp) => allowed.includes(emp.id))
+                            .map((emp) => emp.nombreCorto);
+
+                          return (
+                            <div className="flex flex-wrap gap-1 justify-center max-w-[200px] mx-auto">
+                              {allowedNames.map((name, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200"
+                                >
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="py-3.5 px-6 text-center">
                         <span
@@ -667,6 +735,54 @@ export default function UsuariosPage() {
                   </select>
                 </div>
               </div>
+
+              {formRol === "FACTURADOR" && availableEmpresas.length > 0 && (
+                <div className="pt-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Empresas Permitidas
+                    </label>
+                    <span className="text-[10px] text-slate-400">
+                      {formEmpresasPermitidas.length === 0
+                        ? "Todas las empresas (sin restricción)"
+                        : `${formEmpresasPermitidas.length} de ${availableEmpresas.length} seleccionadas`}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 p-3 bg-slate-50 border border-slate-200 rounded-2xl max-h-40 overflow-y-auto">
+                    {availableEmpresas.map((emp) => {
+                      const isChecked = formEmpresasPermitidas.includes(emp.id);
+                      return (
+                        <label
+                          key={emp.id}
+                          className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer hover:bg-slate-100 p-1.5 rounded-xl transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormEmpresasPermitidas([...formEmpresasPermitidas, emp.id]);
+                              } else {
+                                setFormEmpresasPermitidas(
+                                  formEmpresasPermitidas.filter((id) => id !== emp.id)
+                                );
+                              }
+                            }}
+                            className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+                          />
+                          <div className="flex items-center gap-2 flex-1">
+                            <span className="font-bold text-slate-900">{emp.nombreCorto}</span>
+                            <span className="font-mono text-[10px] text-slate-400">({emp.rfc})</span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    * Si desmarcas todas, este facturador tendrá acceso a todas las empresas.
+                  </p>
+                </div>
+              )}
 
               <div className="pt-3 flex items-center justify-end gap-2">
                 <button

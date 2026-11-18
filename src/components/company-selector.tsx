@@ -85,14 +85,29 @@ export function CompanySelector({ isAdmin = false }: CompanySelectorProps) {
   useEffect(() => {
     fetchEmpresas();
 
+    const onUpdate = () => fetchEmpresas();
+    window.addEventListener("empresaChanged", onUpdate);
+    window.addEventListener("empresasUpdated", onUpdate);
+
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("empresaChanged", onUpdate);
+      window.removeEventListener("empresasUpdated", onUpdate);
+    };
   }, []);
+
+  const handleToggle = () => {
+    if (!isOpen) {
+      fetchEmpresas();
+    }
+    setIsOpen(!isOpen);
+  };
 
   const handleSelectEmpresa = (emp: Empresa) => {
     if (activeEmpresa?.id === emp.id) {
@@ -105,9 +120,9 @@ export function CompanySelector({ isAdmin = false }: CompanySelectorProps) {
     localStorage.setItem("sk_active_empresa_id", emp.id);
     setIsOpen(false);
 
-    // Disparar evento para que otras partes reactivas se enteren
+    // Disparar evento y recargar para sincronizar estado global
     window.dispatchEvent(new CustomEvent("empresaChanged", { detail: emp }));
-    router.refresh();
+    window.location.reload();
   };
 
   if (loading && !activeEmpresa) {
@@ -130,7 +145,7 @@ export function CompanySelector({ isAdmin = false }: CompanySelectorProps) {
       <div className="relative" ref={dropdownRef}>
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleToggle}
           className="inline-flex items-center gap-2 px-3 py-1.5 sm:py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 shadow-xs transition-all text-xs font-semibold text-slate-800"
           title={`Empresa emisora activa: ${activeEmpresa?.nombreCorto || "Seleccionar"}`}
         >
