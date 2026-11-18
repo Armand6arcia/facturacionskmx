@@ -33,6 +33,7 @@ export function NewClientModal({
   const [codigoPostal, setCodigoPostal] = useState("");
   const [regimenFiscal, setRegimenFiscal] = useState("601");
   const [usoCfdi, setUsoCfdi] = useState("G03");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [parsingPdf, setParsingPdf] = useState(false);
   const [pdfSuccess, setPdfSuccess] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export function NewClientModal({
       setCodigoPostal(clientToEdit.codigoPostal || "");
       setRegimenFiscal(clientToEdit.regimenFiscal || "601");
       setUsoCfdi(clientToEdit.usoCfdiDefault || "G03");
+      setEmail(clientToEdit.email || "");
       setPdfSuccess(null);
       setError(null);
     } else {
@@ -54,6 +56,7 @@ export function NewClientModal({
       setCodigoPostal("");
       setRegimenFiscal("601");
       setUsoCfdi("G03");
+      setEmail("");
       setPdfSuccess(null);
       setError(null);
     }
@@ -134,6 +137,7 @@ export function NewClientModal({
             codigoPostal: codigoPostal.trim(),
             regimenFiscal,
             usoCfdiDefault: usoCfdi,
+            email: email.trim() || null,
           }),
         });
 
@@ -155,6 +159,7 @@ export function NewClientModal({
             codigoPostal: codigoPostal.trim(),
             regimenFiscal,
             usoCfdiDefault: usoCfdi,
+            email: email.trim() || null,
           }),
         });
 
@@ -364,6 +369,24 @@ export function NewClientModal({
                 <option value="S01">S01 - Sin efectos fiscales</option>
                 <option value="CP01">CP01 - Pagos</option>
               </select>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Correo Electrónico (opcional)
+                </label>
+                <span className="text-[11px] text-slate-400">
+                  Para envío de factura y actualización en Factura.com
+                </span>
+              </div>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="cliente@ejemplo.com"
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white"
+              />
             </div>
 
             <div className="pt-4 flex items-center justify-end gap-3 border-t">

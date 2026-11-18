@@ -351,11 +351,7 @@ export class FacturaComPacClient implements PacClient {
     const codpos = String(cliente.codigoPostal || "06600").trim();
     const regimen = String(cliente.regimenFiscal || (rfc.length === 12 ? "601" : "612")).trim();
     const usocfdi = String(cliente.usoCfdi || "G03").trim();
-    const email =
-      (cliente.email && cliente.email.trim()) ||
-      process.env.FACTURA_COM_CLIENTE_EMAIL ||
-      process.env.FACTURACOM_CLIENTE_EMAIL ||
-      "facturacion@stylekorean.mx";
+    const cleanEmail = cliente.email && cliente.email.trim();
 
     const payloadCliente: any = {
       rfc,
@@ -363,10 +359,15 @@ export class FacturaComPacClient implements PacClient {
       codpos,
       regimen,
       usocfdi,
-      email,
       pais: cliente.pais || "MEX",
     };
     if (cliente.numRegIdTrib) payloadCliente.numregidtrib = cliente.numRegIdTrib;
+
+    // Solo si se provee un email explícito se incluye en la actualización;
+    // NUNCA se sobreescribe con el correo global a clientes existentes.
+    if (cleanEmail) {
+      payloadCliente.email = cleanEmail;
+    }
 
     // 1. Buscar únicamente por su RFC puntual (sin descargar el catálogo completo)
     const existingUid = await this.buscarClientePorRfc(rfc);
@@ -388,9 +389,18 @@ export class FacturaComPacClient implements PacClient {
       return { success: true, uid: existingUid, action: "updated" };
     }
 
-    // 3. Si no existe, registrarlo nuevo en Factura.com
+    // 3. Si no existe, registrarlo nuevo en Factura.com (la API exige un email en create)
+    const payloadCreate = {
+      ...payloadCliente,
+      email:
+        cleanEmail ||
+        process.env.FACTURA_COM_CLIENTE_EMAIL ||
+        process.env.FACTURACOM_CLIENTE_EMAIL ||
+        "facturacion@stylekorean.mx",
+    };
+
     try {
-      const createRes = await this.request("POST", `/v1/clients/create`, payloadCliente);
+      const createRes = await this.request("POST", `/v1/clients/create`, payloadCreate);
       if (createRes.isJson && createRes.ok && !this.isErrorPayload(createRes.json)) {
         const newUid = this.findKey(createRes.json, ["UID", "uid"]);
         return { success: true, uid: newUid ? String(newUid) : undefined, action: "created" };

@@ -15,12 +15,22 @@ export async function ensureTablesExist() {
         codigoPostal VARCHAR(191) NOT NULL,
         regimenFiscal VARCHAR(191) NOT NULL,
         usoCfdiDefault VARCHAR(191) NOT NULL,
+        email VARCHAR(191) NULL,
         pais VARCHAR(191) NOT NULL DEFAULT 'MEX',
         numRegIdTrib VARCHAR(191) NULL,
         esExtranjero BOOLEAN NOT NULL DEFAULT FALSE,
         createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    // Asegurar columna email en tabla Cliente si fue creada previamente sin ella
+    try {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE Cliente ADD COLUMN email VARCHAR(191) NULL;
+      `);
+    } catch {
+      // Ignorar si la columna ya existe
+    }
 
     // 2. Tabla ProductoSat
     await prisma.$executeRawUnsafe(`

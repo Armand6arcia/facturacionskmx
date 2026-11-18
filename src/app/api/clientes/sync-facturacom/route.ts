@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
       ).trim();
 
       const numRegIdTrib = raw.numregidtrib || raw.tax_id || null;
+      const rawEmail = (raw.email || raw.correo || "").trim() || null;
 
       // Verificar si ya existe
       const existente = await prisma.cliente.findUnique({
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
             codigoPostal: codigoPostal || existente.codigoPostal,
             regimenFiscal: regimenFiscal || existente.regimenFiscal,
             usoCfdiDefault: usoCfdiDefault || existente.usoCfdiDefault,
+            email: existente.email || rawEmail,
             numRegIdTrib: numRegIdTrib || existente.numRegIdTrib,
           },
         });
@@ -93,6 +95,7 @@ export async function POST(req: NextRequest) {
             codigoPostal: codigoPostal || "06600",
             regimenFiscal: regimenFiscal || "601",
             usoCfdiDefault: usoCfdiDefault || "G03",
+            email: rawEmail,
             numRegIdTrib,
             pais: "MEX",
           },

@@ -9,6 +9,7 @@ import {
   FileUp,
   Building2,
   MapPin,
+  Mail,
   FileText,
   Loader2,
   RefreshCw,
@@ -16,7 +17,6 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
-  UploadCloud,
 } from "lucide-react";
 import { NewClientModal } from "./new-client-modal";
 
@@ -40,7 +40,6 @@ export function ClientsCatalogModal({
 
   // Sync state
   const [syncing, setSyncing] = useState(false);
-  const [pushing, setPushing] = useState(false);
   const [syncResult, setSyncResult] = useState<{
     success: boolean;
     message: string;
@@ -101,37 +100,6 @@ export function ClientsCatalogModal({
       });
     } finally {
       setSyncing(false);
-    }
-  };
-
-  const handlePushFacturaCom = async () => {
-    setPushing(true);
-    setSyncResult(null);
-
-    try {
-      const res = await fetch("/api/clientes/push-facturacom", {
-        method: "POST",
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Error al enviar clientes a Factura.com");
-      }
-
-      setSyncResult({
-        success: true,
-        message: data.mensaje || "Base de datos sincronizada con Factura.com con éxito.",
-      });
-
-      await fetchClientes();
-      if (onClientUpdated) onClientUpdated();
-    } catch (err: any) {
-      setSyncResult({
-        success: false,
-        message: err.message || "Error al conectar con Factura.com.",
-      });
-    } finally {
-      setPushing(false);
     }
   };
 
@@ -276,18 +244,8 @@ export function ClientsCatalogModal({
 
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <button
-                onClick={handlePushFacturaCom}
-                disabled={pushing || syncing}
-                title="Enviar y actualizar todos los clientes de tu sistema a Factura.com"
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 border border-blue-200 hover:border-blue-400 bg-blue-50/70 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold shadow-xs transition-all disabled:opacity-50"
-              >
-                <UploadCloud className={`h-3.5 w-3.5 ${pushing ? "animate-bounce text-blue-600" : ""}`} />
-                <span>{pushing ? "Enviando..." : "Enviar BD a Factura.com"}</span>
-              </button>
-
-              <button
                 onClick={handleSyncFacturaCom}
-                disabled={syncing || pushing}
+                disabled={syncing}
                 title="Descargar clientes registrados en tu cuenta de Factura.com"
                 className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold shadow-xs transition-all disabled:opacity-50"
               >
@@ -357,6 +315,16 @@ export function ClientsCatalogModal({
                       </span>
                       <span>Régimen: <b className="text-slate-700 font-medium">{c.regimenFiscal}</b></span>
                       <span>Uso CFDI: <b className="text-blue-700 font-medium">{c.usoCfdiDefault || "G03"}</b></span>
+                      {c.email ? (
+                        <span className="flex items-center gap-1 text-slate-600">
+                          <Mail className="h-3 w-3 text-slate-400" />
+                          <span>{c.email}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded">
+                          Sin correo
+                        </span>
+                      )}
                     </div>
                   </div>
 

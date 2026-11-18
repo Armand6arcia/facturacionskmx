@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     await ensureTablesExist();
 
     const body = await req.json();
-    const { rfc, razonSocial, codigoPostal, regimenFiscal, usoCfdiDefault, pais, esExtranjero } = body;
+    const { rfc, razonSocial, codigoPostal, regimenFiscal, usoCfdiDefault, email, pais, esExtranjero } = body;
 
     if (!rfc || !razonSocial || !codigoPostal || !regimenFiscal) {
       return NextResponse.json({ error: "Todos los campos fiscales son requeridos." }, { status: 400 });
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
     const cleanRfc = rfc.trim().toUpperCase();
     const cleanRazonSocial = normalizarNombreCfdi40(razonSocial, cleanRfc);
     const cleanUso = (usoCfdiDefault && usoCfdiDefault.trim().toUpperCase()) || "G03";
+    const cleanEmail = email && typeof email === "string" ? email.trim() : null;
 
     const nuevoCliente = await prisma.cliente.upsert({
       where: { rfc: cleanRfc },
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
         codigoPostal: codigoPostal.trim(),
         regimenFiscal: regimenFiscal.trim(),
         usoCfdiDefault: cleanUso,
+        email: cleanEmail,
         pais: pais || "MEX",
         esExtranjero: Boolean(esExtranjero),
       },
@@ -62,6 +64,7 @@ export async function POST(req: NextRequest) {
         codigoPostal: codigoPostal.trim(),
         regimenFiscal: regimenFiscal.trim(),
         usoCfdiDefault: cleanUso,
+        email: cleanEmail,
         pais: pais || "MEX",
         esExtranjero: Boolean(esExtranjero),
       },
@@ -77,6 +80,7 @@ export async function POST(req: NextRequest) {
         codigoPostal: codigoPostal.trim(),
         regimenFiscal: regimenFiscal.trim(),
         usoCfdi: cleanUso,
+        email: cleanEmail || undefined,
         pais: pais || "MEX",
       });
     } catch (e: any) {
@@ -100,7 +104,7 @@ export async function PUT(req: NextRequest) {
     await ensureTablesExist();
 
     const body = await req.json();
-    const { id, rfc, razonSocial, codigoPostal, regimenFiscal, usoCfdiDefault, pais, esExtranjero } = body;
+    const { id, rfc, razonSocial, codigoPostal, regimenFiscal, usoCfdiDefault, email, pais, esExtranjero } = body;
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
@@ -128,6 +132,10 @@ export async function PUT(req: NextRequest) {
     const cleanCp = codigoPostal ? codigoPostal.trim() : clienteExistente.codigoPostal;
     const cleanRegimen = regimenFiscal ? regimenFiscal.trim() : clienteExistente.regimenFiscal;
     const cleanUsoCfdi = usoCfdiDefault ? usoCfdiDefault.trim().toUpperCase() : (clienteExistente.usoCfdiDefault || "G03");
+    const cleanEmail =
+      email !== undefined
+        ? (email && typeof email === "string" && email.trim().length > 0 ? email.trim() : null)
+        : clienteExistente.email;
 
     // Si cambió el RFC, validar que no colisione con otro cliente existente
     if (cleanRfc !== clienteExistente.rfc) {
@@ -150,6 +158,7 @@ export async function PUT(req: NextRequest) {
         codigoPostal: cleanCp,
         regimenFiscal: cleanRegimen,
         usoCfdiDefault: cleanUsoCfdi,
+        email: cleanEmail,
         pais: pais || clienteExistente.pais || "MEX",
         esExtranjero: esExtranjero !== undefined ? Boolean(esExtranjero) : clienteExistente.esExtranjero,
       },
@@ -180,6 +189,7 @@ export async function PUT(req: NextRequest) {
         codigoPostal: cleanCp,
         regimenFiscal: cleanRegimen,
         usoCfdi: cleanUsoCfdi,
+        email: cleanEmail || undefined,
         pais: pais || clienteExistente.pais || "MEX",
       });
     } catch (e: any) {

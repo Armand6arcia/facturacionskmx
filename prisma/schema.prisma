@@ -14,6 +14,7 @@ model Cliente {
   codigoPostal    String
   regimenFiscal   String      // e.g. "601", "616"
   usoCfdiDefault  String      // e.g. "G03", "S01", "CP01"
+  email           String?
   pais            String      @default("MEX")
   numRegIdTrib    String?
   esExtranjero    Boolean     @default(false)

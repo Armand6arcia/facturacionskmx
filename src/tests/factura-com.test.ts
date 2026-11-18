@@ -383,6 +383,84 @@ describe("FacturaComPacClient", () => {
     expect(capturedBody.Receptor.Nombre).toBe("PUBLICO EN GENERAL");
   });
 
+  describe("sincronizarCliente y protección de email", () => {
+    beforeEach(() => {
+      process.env.FACTURA_COM_API_KEY = "test_api_key";
+      process.env.FACTURA_COM_SECRET_KEY = "test_secret_key";
+      process.env.FACTURA_COM_ENVIRONMENT = "sandbox";
+    });
+
+    it("NO incluye email en payload de actualizacion si el cliente no tiene email (protege datos en Factura.com)", async () => {
+      let capturedUpdateBody: any = null;
+      vi.spyOn(global, "fetch").mockImplementation(async (url: any, opts: any) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/v1/clients/EKU9003173C9")) {
+          return new Response(JSON.stringify({ status: "success", data: { UID: "client-uid-999" } }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (urlStr.includes("/v1/clients/client-uid-999/update")) {
+          capturedUpdateBody = JSON.parse(opts.body);
+          return new Response(JSON.stringify({ status: "success", message: "Cliente actualizado" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return new Response("Not found", { status: 404 });
+      });
+
+      const client = new FacturaComPacClient();
+      const res = await client.sincronizarCliente({
+        rfc: "EKU9003173C9",
+        razonSocial: "ESCUELA KEMPER URGATE",
+        codigoPostal: "06600",
+        regimenFiscal: "601",
+      });
+
+      expect(res.success).toBe(true);
+      expect(res.action).toBe("updated");
+      expect(capturedUpdateBody).not.toBeNull();
+      expect(capturedUpdateBody.email).toBeUndefined(); // Email no debe sobreescribirse
+      expect(capturedUpdateBody.rfc).toBe("EKU9003173C9");
+      expect(capturedUpdateBody.codpos).toBe("06600");
+    });
+
+    it("SI incluye email en actualizacion cuando se especifica manualmente", async () => {
+      let capturedUpdateBody: any = null;
+      vi.spyOn(global, "fetch").mockImplementation(async (url: any, opts: any) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/v1/clients/EKU9003173C9")) {
+          return new Response(JSON.stringify({ status: "success", data: { UID: "client-uid-999" } }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (urlStr.includes("/v1/clients/client-uid-999/update")) {
+          capturedUpdateBody = JSON.parse(opts.body);
+          return new Response(JSON.stringify({ status: "success", message: "Cliente actualizado" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return new Response("Not found", { status: 404 });
+      });
+
+      const client = new FacturaComPacClient();
+      const res = await client.sincronizarCliente({
+        rfc: "EKU9003173C9",
+        razonSocial: "ESCUELA KEMPER URGATE",
+        codigoPostal: "06600",
+        regimenFiscal: "601",
+        email: "contabilidad@kemper.edu.mx",
+      });
+
+      expect(res.success).toBe(true);
+      expect(res.action).toBe("updated");
+      expect(capturedUpdateBody.email).toBe("contabilidad@kemper.edu.mx");
+    });
+  });
+
   describe("normalizarNombreCfdi40", () => {
     it("elimina acentos de vocales pero preserva la letra Ñ", () => {
       expect(normalizarNombreCfdi40("JOSÉ MARÍA LÓPEZ HERNÁNDEZ", "LOHJ800101XYZ")).toBe(
